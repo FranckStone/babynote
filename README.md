@@ -1,6 +1,6 @@
-# BabyNote
+# 宝宝笔记
 
-BabyNote is an iOS app for quickly recording pregnancy and newborn care events for a growing family.
+宝宝笔记 is an iOS app for quickly recording pregnancy and newborn care events for a growing family.
 
 ## Product Goal
 

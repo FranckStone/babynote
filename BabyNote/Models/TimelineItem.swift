@@ -1,3 +1,4 @@
+import CoreData
 import Foundation
 
 enum TimelineRecord {
@@ -10,7 +11,7 @@ enum TimelineRecord {
 }
 
 struct TimelineItem: Identifiable {
-    let id: String
+    let id: NSManagedObjectID
     let recordedAt: Date
     let type: RecordType
     let title: String
@@ -26,80 +27,167 @@ struct TimelineItem: Identifiable {
         fetalMovements: [FetalMovementRecord],
         bloodGlucoses: [BloodGlucoseRecord]
     ) -> [TimelineItem] {
-        let feedingItems = feedings.map {
-            TimelineItem(
-                id: "feeding-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.startedAt,
-                type: .feeding,
-                title: $0.feedingType.displayName,
-                detail: feedingDetail(for: $0),
-                note: $0.note,
-                record: .feeding($0)
-            )
-        }
-
-        let weightItems = weights.map {
-            TimelineItem(
-                id: "weight-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.recordedAt,
-                type: .weight,
-                title: "体重记录",
-                detail: WeightDisplay.jinText(fromKG: $0.weightKG),
-                note: $0.note,
-                record: .weight($0)
-            )
-        }
-
-        let medicationItems = medications.map {
-            TimelineItem(
-                id: "medication-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.recordedAt,
-                type: .medication,
-                title: $0.name,
-                detail: $0.dosage,
-                note: $0.note,
-                record: .medication($0)
-            )
-        }
-
-        let checkupItems = checkups.map {
-            TimelineItem(
-                id: "checkup-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.recordedAt,
-                type: .checkup,
-                title: $0.location,
-                detail: $0.summary,
-                note: $0.note,
-                record: .checkup($0)
-            )
-        }
-
-        let fetalMovementItems = fetalMovements.map {
-            TimelineItem(
-                id: "fetalMovement-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.recordedAt,
-                type: .fetalMovement,
-                title: "胎动记录",
-                detail: fetalMovementDetail(for: $0),
-                note: $0.note,
-                record: .fetalMovement($0)
-            )
-        }
-
-        let bloodGlucoseItems = bloodGlucoses.map {
-            TimelineItem(
-                id: "bloodGlucose-\($0.objectID.uriRepresentation().absoluteString)",
-                recordedAt: $0.recordedAt,
-                type: .bloodGlucose,
-                title: "血糖监测",
-                detail: bloodGlucoseDetail(for: $0),
-                note: $0.note,
-                record: .bloodGlucose($0)
-            )
-        }
-
-        return (feedingItems + weightItems + medicationItems + checkupItems + fetalMovementItems + bloodGlucoseItems)
+        (feedings.map(makeItem) +
+         weights.map(makeItem) +
+         medications.map(makeItem) +
+         checkups.map(makeItem) +
+         fetalMovements.map(makeItem) +
+         bloodGlucoses.map(makeItem))
             .sorted { $0.recordedAt > $1.recordedAt }
+    }
+
+    static func buildRecent(
+        limit: Int,
+        feedings: [FeedingRecord],
+        weights: [WeightRecord],
+        medications: [MedicationRecord],
+        checkups: [CheckupRecord],
+        fetalMovements: [FetalMovementRecord],
+        bloodGlucoses: [BloodGlucoseRecord]
+    ) -> [TimelineItem] {
+        guard limit > 0 else { return [] }
+
+        let groups: [[TimelineRecord]] = [
+            feedings.map(TimelineRecord.feeding),
+            weights.map(TimelineRecord.weight),
+            medications.map(TimelineRecord.medication),
+            checkups.map(TimelineRecord.checkup),
+            fetalMovements.map(TimelineRecord.fetalMovement),
+            bloodGlucoses.map(TimelineRecord.bloodGlucose)
+        ]
+
+        var indices = Array(repeating: 0, count: groups.count)
+        var recentItems: [TimelineItem] = []
+        recentItems.reserveCapacity(limit)
+
+        while recentItems.count < limit {
+            var nextGroupIndex: Int?
+            var nextDate = Date.distantPast
+
+            for groupIndex in groups.indices {
+                let group = groups[groupIndex]
+                let itemIndex = indices[groupIndex]
+                guard itemIndex < group.count else { continue }
+
+                let candidateDate = recordedAt(for: group[itemIndex])
+                if nextGroupIndex == nil || candidateDate > nextDate {
+                    nextGroupIndex = groupIndex
+                    nextDate = candidateDate
+                }
+            }
+
+            guard let nextGroupIndex else { break }
+            recentItems.append(makeItem(from: groups[nextGroupIndex][indices[nextGroupIndex]]))
+            indices[nextGroupIndex] += 1
+        }
+
+        return recentItems
+    }
+
+    private static func makeItem(_ record: FeedingRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.startedAt,
+            type: .feeding,
+            title: record.feedingType.displayName,
+            detail: feedingDetail(for: record),
+            note: record.note,
+            record: .feeding(record)
+        )
+    }
+
+    private static func makeItem(_ record: WeightRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .weight,
+            title: "体重记录",
+            detail: WeightDisplay.jinText(fromKG: record.weightKG),
+            note: record.note,
+            record: .weight(record)
+        )
+    }
+
+    private static func makeItem(_ record: MedicationRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .medication,
+            title: record.name,
+            detail: record.dosage,
+            note: record.note,
+            record: .medication(record)
+        )
+    }
+
+    private static func makeItem(_ record: CheckupRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .checkup,
+            title: record.location,
+            detail: record.summary,
+            note: record.note,
+            record: .checkup(record)
+        )
+    }
+
+    private static func makeItem(_ record: FetalMovementRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .fetalMovement,
+            title: "胎动记录",
+            detail: fetalMovementDetail(for: record),
+            note: record.note,
+            record: .fetalMovement(record)
+        )
+    }
+
+    private static func makeItem(_ record: BloodGlucoseRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .bloodGlucose,
+            title: "血糖监测",
+            detail: bloodGlucoseDetail(for: record),
+            note: record.note,
+            record: .bloodGlucose(record)
+        )
+    }
+
+    private static func makeItem(from record: TimelineRecord) -> TimelineItem {
+        switch record {
+        case .feeding(let record):
+            makeItem(record)
+        case .weight(let record):
+            makeItem(record)
+        case .medication(let record):
+            makeItem(record)
+        case .checkup(let record):
+            makeItem(record)
+        case .fetalMovement(let record):
+            makeItem(record)
+        case .bloodGlucose(let record):
+            makeItem(record)
+        }
+    }
+
+    private static func recordedAt(for record: TimelineRecord) -> Date {
+        switch record {
+        case .feeding(let record):
+            record.startedAt
+        case .weight(let record):
+            record.recordedAt
+        case .medication(let record):
+            record.recordedAt
+        case .checkup(let record):
+            record.recordedAt
+        case .fetalMovement(let record):
+            record.recordedAt
+        case .bloodGlucose(let record):
+            record.recordedAt
+        }
     }
 
     private static func feedingDetail(for record: FeedingRecord) -> String {

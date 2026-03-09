@@ -20,6 +20,8 @@ struct TimelineView: View {
     }
 
     var body: some View {
+        let items = filteredItems
+
         NavigationStack {
             List {
                 Section {
@@ -35,7 +37,7 @@ struct TimelineView: View {
                 }
                 .listRowBackground(Color.clear)
 
-                if filteredItems.isEmpty {
+                if items.isEmpty {
                     Section {
                         if #available(iOS 17.0, *) {
                             ContentUnavailableView("还没有时间线记录", systemImage: "calendar")
@@ -53,7 +55,7 @@ struct TimelineView: View {
                         }
                     }
                 } else {
-                    ForEach(filteredItems) { item in
+                    ForEach(items) { item in
                         Button {
                             selectedItem = item
                         } label: {

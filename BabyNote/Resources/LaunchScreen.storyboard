@@ -23,7 +23,7 @@
                                     <constraint firstAttribute="height" constant="160" id="erC-0P-LrC"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="宝贝笔记" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="wom-rI-f6V">
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="宝宝笔记" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="wom-rI-f6V">
                                 <rect key="frame" x="451.5" y="704" width="129" height="41"/>
                                 <fontDescription key="fontDescription" type="boldSystem" pointSize="34"/>
                                 <color key="textColor" red="1" green="1" blue="1" alpha="0.95999999999999996" colorSpace="custom" customColorSpace="sRGB"/>

@@ -11,12 +11,19 @@ struct StatsView: View {
 
     private var averageFeedingIntervalHours: Double? {
         guard feedings.count >= 2 else { return nil }
-        let ordered = feedings.sorted { $0.startedAt < $1.startedAt }
-        let intervals = zip(ordered, ordered.dropFirst()).map {
-            $1.startedAt.timeIntervalSince($0.startedAt) / 3600
+
+        var totalHours: Double = 0
+        var intervalCount = 0
+
+        for index in 0..<(feedings.count - 1) {
+            let newer = feedings[index]
+            let older = feedings[index + 1]
+            totalHours += newer.startedAt.timeIntervalSince(older.startedAt) / 3600
+            intervalCount += 1
         }
-        guard !intervals.isEmpty else { return nil }
-        return intervals.reduce(0, +) / Double(intervals.count)
+
+        guard intervalCount > 0 else { return nil }
+        return totalHours / Double(intervalCount)
     }
 
     private var statsColumns: [GridItem] {

@@ -9,6 +9,7 @@ struct ContentView: View {
     @FetchRequest(sortDescriptors: [SortDescriptor(\CheckupRecord.recordedAt, order: .reverse)]) private var checkups: FetchedResults<CheckupRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\FetalMovementRecord.recordedAt, order: .reverse)]) private var fetalMovements: FetchedResults<FetalMovementRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
+    @State private var hasTriggeredSeed = false
 
     var body: some View {
         TabView {
@@ -33,6 +34,8 @@ struct ContentView: View {
                 }
         }
         .task {
+            guard !hasTriggeredSeed else { return }
+            hasTriggeredSeed = true
             SampleDataSeeder.seedIfNeeded(
                 context: managedObjectContext,
                 feedings: Array(feedings),

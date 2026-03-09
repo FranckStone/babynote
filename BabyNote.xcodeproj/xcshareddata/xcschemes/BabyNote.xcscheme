@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A50000000000000000000001"
-               BuildableName = "BabyNote.app"
+               BuildableName = "&#x5b9d;&#x5b9d;&#x7b14;&#x8bb0;.app"
                BlueprintName = "BabyNote"
                ReferencedContainer = "container:BabyNote.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A50000000000000000000001"
-            BuildableName = "BabyNote.app"
+            BuildableName = "&#x5b9d;&#x5b9d;&#x7b14;&#x8bb0;.app"
             BlueprintName = "BabyNote"
             ReferencedContainer = "container:BabyNote.xcodeproj">
          </BuildableReference>
@@ -62,7 +62,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A50000000000000000000001"
-            BuildableName = "BabyNote.app"
+            BuildableName = "&#x5b9d;&#x5b9d;&#x7b14;&#x8bb0;.app"
             BlueprintName = "BabyNote"
             ReferencedContainer = "container:BabyNote.xcodeproj">
          </BuildableReference>

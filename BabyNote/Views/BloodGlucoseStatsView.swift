@@ -13,7 +13,7 @@ private struct DailyMomentPoint: Identifiable {
 
 struct BloodGlucoseStatsView: View {
     let records: [BloodGlucoseRecord]
-    @State private var selectedDayKeys: Set<String> = []
+    @State private var selectedDays: Set<Date> = []
 
     private let maxSelectedDays = 5
 
@@ -30,12 +30,12 @@ struct BloodGlucoseStatsView: View {
 
     private var selectedDaysAsc: [Date] {
         availableDaysDesc
-            .filter { selectedDayKeys.contains(dayKey($0)) }
+            .filter { selectedDays.contains($0) }
             .sorted(by: <)
     }
 
     private var selectedRecords: [BloodGlucoseRecord] {
-        sortedRecords.filter { selectedDayKeys.contains(dayKey(calendar.startOfDay(for: $0.recordedAt))) }
+        sortedRecords.filter { selectedDays.contains(calendar.startOfDay(for: $0.recordedAt)) }
     }
 
     private var averageValue: Double? {
@@ -47,7 +47,7 @@ struct BloodGlucoseStatsView: View {
     private var lookup: [String: BloodGlucoseRecord] {
         var map: [String: BloodGlucoseRecord] = [:]
         for record in selectedRecords.sorted(by: { $0.recordedAt > $1.recordedAt }) {
-            let key = "\(dayKey(calendar.startOfDay(for: record.recordedAt)))-\(record.moment.rawValue)"
+            let key = lookupKey(day: calendar.startOfDay(for: record.recordedAt), moment: record.moment)
             if map[key] == nil {
                 map[key] = record
             }
@@ -59,7 +59,7 @@ struct BloodGlucoseStatsView: View {
         var points: [DailyMomentPoint] = []
         for day in selectedDaysAsc {
             for moment in BloodGlucoseMoment.allCases {
-                let key = "\(dayKey(day))-\(moment.rawValue)"
+                let key = lookupKey(day: day, moment: moment)
                 if let record = lookup[key] {
                     points.append(DailyMomentPoint(day: day, moment: moment, value: record.valueMMOL))
                 }
@@ -141,8 +141,8 @@ struct BloodGlucoseStatsView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("血糖统计")
         .onAppear {
-            if selectedDayKeys.isEmpty {
-                selectedDayKeys = Set(availableDaysDesc.prefix(maxSelectedDays).map(dayKey))
+            if selectedDays.isEmpty {
+                selectedDays = Set(availableDaysDesc.prefix(maxSelectedDays))
             }
         }
     }
@@ -160,8 +160,7 @@ struct BloodGlucoseStatsView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(availableDaysDesc, id: \.self) { day in
-                            let key = dayKey(day)
-                            let isSelected = selectedDayKeys.contains(key)
+                            let isSelected = selectedDays.contains(day)
 
                             Button {
                                 toggleDaySelection(day)
@@ -183,22 +182,17 @@ struct BloodGlucoseStatsView: View {
     }
 
     private func toggleDaySelection(_ day: Date) {
-        let key = dayKey(day)
-        if selectedDayKeys.contains(key) {
-            selectedDayKeys.remove(key)
+        if selectedDays.contains(day) {
+            selectedDays.remove(day)
             return
         }
 
-        guard selectedDayKeys.count < maxSelectedDays else { return }
-        selectedDayKeys.insert(key)
+        guard selectedDays.count < maxSelectedDays else { return }
+        selectedDays.insert(day)
     }
 
-    private func dayKey(_ day: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: calendar.startOfDay(for: day))
+    private func lookupKey(day: Date, moment: BloodGlucoseMoment) -> String {
+        "\(calendar.startOfDay(for: day).timeIntervalSinceReferenceDate)-\(moment.rawValue)"
     }
 
     private func shortDate(_ day: Date) -> String {

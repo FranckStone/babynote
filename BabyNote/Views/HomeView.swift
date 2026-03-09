@@ -21,8 +21,16 @@ struct HomeView: View {
     @State private var isShowingQuickRecordOptions = false
     @State private var quickLogDestination: QuickLogDestination?
 
-    private var timelineItems: [TimelineItem] {
-        TimelineItem.build(feedings: Array(feedings), weights: Array(weights), medications: Array(medications), checkups: Array(checkups), fetalMovements: Array(fetalMovements), bloodGlucoses: Array(bloodGlucoses))
+    private var recentTimelineItems: [TimelineItem] {
+        TimelineItem.buildRecent(
+            limit: 4,
+            feedings: Array(feedings),
+            weights: Array(weights),
+            medications: Array(medications),
+            checkups: Array(checkups),
+            fetalMovements: Array(fetalMovements),
+            bloodGlucoses: Array(bloodGlucoses)
+        )
     }
 
     private var todayFeedingCount: Int {
@@ -63,7 +71,7 @@ struct HomeView: View {
                 .adaptiveContentWidth(contentMaxWidth)
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("宝贝笔记")
+            .navigationTitle("宝宝笔记")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -257,7 +265,7 @@ struct HomeView: View {
             Text("最近记录")
                 .font(.headline)
 
-            if timelineItems.isEmpty {
+            if recentTimelineItems.isEmpty {
                 if #available(iOS 17.0, *) {
                     ContentUnavailableView("还没有记录", systemImage: "tray", description: Text("先从一次快速记录开始。"))
                 } else {
@@ -276,9 +284,8 @@ struct HomeView: View {
                     .padding(.vertical, 24)
                 }
             } else {
-                let recentItems = Array(timelineItems.prefix(4))
                 VStack(spacing: 10) {
-                    ForEach(recentItems) { item in
+                    ForEach(recentTimelineItems) { item in
                         HStack(alignment: .top, spacing: 12) {
                             Image(systemName: item.type.symbol)
                                 .font(.headline)

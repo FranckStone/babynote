@@ -199,16 +199,150 @@ private struct WeightRecordEditor: View {
 
 private struct MedicationRecordEditor: View {
     @ObservedObject var record: MedicationRecord
+    @State private var baselineDoseAmount: Double = 1
+    @State private var dosageAmount = ""
+    @State private var dosageUnit = "片"
+    @State private var dosageAdjustment: Double = 0
+    @State private var isSyncingDosageFromText = false
 
     var body: some View {
         Form {
             Section("药物信息") {
                 DatePicker("记录时间", selection: recordedAtBinding)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("常用快捷添加")
+                        .font(.subheadline.weight(.medium))
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(MedicationPreset.pregnancyCommon) { preset in
+                            Button {
+                                record.name = preset.name
+                                baselineDoseAmount = preset.dosageValue
+                                dosageUnit = preset.dosageUnit
+                                dosageAmount = String(format: "%.1f", preset.dosageValue)
+                                syncDosageAdjustment()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(preset.name)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                    Text(preset.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(record.name == preset.name ? Color.accentColor.opacity(0.16) : Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    Text("快捷项仅用于记录常见补充剂，具体是否使用和剂量请以医嘱为准。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
                 TextField("药名", text: nameBinding)
-                TextField("剂量", text: dosageBinding)
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("剂量快捷调整")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Text("当前 \(MedicationDose(amount: currentDoseAmount, unit: dosageUnit).displayText)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("少 \(String(format: "%.1f", dosageSliderLimit)) \(dosageUnit)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("参考 \(String(format: "%.1f", baselineDoseAmount)) \(dosageUnit)")
+                            .font(.caption.weight(.semibold))
+                        Spacer()
+                        Text("多 \(String(format: "%.1f", dosageSliderLimit)) \(dosageUnit)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Slider(value: $dosageAdjustment, in: -dosageSliderLimit...dosageSliderLimit, step: 0.5) {
+                        Text("剂量调整")
+                    } minimumValueLabel: {
+                        Image(systemName: "minus")
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        Image(systemName: "plus")
+                            .foregroundStyle(.secondary)
+                    }
+                    .onChange(of: dosageAdjustment) { _ in
+                        guard !isSyncingDosageFromText else { return }
+                        let updated = max(baselineDoseAmount + dosageAdjustment, 0)
+                        dosageAmount = String(format: "%.1f", updated)
+                        record.dosage = MedicationDose(amount: updated, unit: dosageUnit).displayText
+                    }
+
+                    Text(dosageSelectionText)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 2)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            adjustDosage(by: -0.5)
+                        } label: {
+                            Label("减", systemImage: "minus.circle.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            adjustDosage(by: 0.5)
+                        } label: {
+                            Label("加", systemImage: "plus.circle.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    TextField("剂量", text: $dosageAmount)
+                        .keyboardType(.decimalPad)
+                        .onChange(of: dosageAmount) { _ in
+                            syncDosageAdjustment()
+                        }
+
+                    Picker("单位", selection: $dosageUnit) {
+                        ForEach(medicationDoseUnits, id: \.self) { unit in
+                            Text(unit).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: dosageUnit) { _ in
+                        if let amount = Double(dosageAmount.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                            record.dosage = MedicationDose(amount: amount, unit: dosageUnit).displayText
+                        }
+                    }
+                }
                 TextField("备注", text: noteBinding, axis: .vertical)
                     .lineLimit(2...4)
             }
+        }
+        .onAppear {
+            let parsedDose = MedicationDose.parse(record.dosage) ?? MedicationDose(amount: 1, unit: "片")
+            baselineDoseAmount = parsedDose.amount
+            dosageUnit = parsedDose.unit
+            dosageAmount = String(format: "%.1f", parsedDose.amount)
+            syncDosageAdjustment()
         }
     }
 
@@ -226,11 +360,40 @@ private struct MedicationRecordEditor: View {
         )
     }
 
-    private var dosageBinding: Binding<String> {
-        Binding(
-            get: { record.dosage },
-            set: { record.dosage = $0 }
-        )
+    private var medicationDoseUnits: [String] {
+        ["片", "粒", "袋", "ml", "mg", "mcg", "IU", "次"]
+    }
+
+    private var currentDoseAmount: Double {
+        Double(dosageAmount.trimmingCharacters(in: .whitespacesAndNewlines)) ?? baselineDoseAmount
+    }
+
+    private var dosageSliderLimit: Double {
+        max(max(1.0, abs(currentDoseAmount - baselineDoseAmount)), baselineDoseAmount)
+    }
+
+    private var dosageSelectionText: String {
+        let delta = currentDoseAmount - baselineDoseAmount
+        if abs(delta) < 0.05 {
+            return "当前选择：参考 \(String(format: "%.1f", currentDoseAmount)) \(dosageUnit)"
+        }
+        return "当前选择：\(String(format: "%.1f", currentDoseAmount)) \(dosageUnit)（\(delta > 0 ? "多" : "少") \(String(format: "%.1f", abs(delta))) \(dosageUnit)）"
+    }
+
+    private func syncDosageAdjustment() {
+        guard let amount = Double(dosageAmount.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        record.dosage = MedicationDose(amount: amount, unit: dosageUnit).displayText
+        isSyncingDosageFromText = true
+        dosageAdjustment = max(min(amount - baselineDoseAmount, dosageSliderLimit), -dosageSliderLimit)
+        DispatchQueue.main.async {
+            isSyncingDosageFromText = false
+        }
+    }
+
+    private func adjustDosage(by delta: Double) {
+        let updated = max(currentDoseAmount + delta, 0)
+        dosageAmount = String(format: "%.1f", updated)
+        syncDosageAdjustment()
     }
 
     private var noteBinding: Binding<String> {
@@ -348,6 +511,10 @@ private struct FetalMovementRecordEditor: View {
 
 private struct BloodGlucoseRecordEditor: View {
     @ObservedObject var record: BloodGlucoseRecord
+    @State private var baselineValue: Double = 0
+    @State private var valueText = ""
+    @State private var adjustment: Double = 0
+    @State private var isSyncingFromText = false
 
     var body: some View {
         Form {
@@ -358,11 +525,90 @@ private struct BloodGlucoseRecordEditor: View {
                         Text(moment.displayName).tag(moment)
                     }
                 }
-                TextField("血糖（mmol/L）", text: valueTextBinding)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("血糖快捷调整")
+                            .font(.subheadline.weight(.medium))
+                        Spacer()
+                        Text("当前 \(String(format: "%.1f", record.valueMMOL)) mmol/L")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("少 \(String(format: "%.1f", sliderLimit))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("参考 \(String(format: "%.1f", baselineValue))")
+                            .font(.caption.weight(.semibold))
+                        Spacer()
+                        Text("多 \(String(format: "%.1f", sliderLimit))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Slider(value: $adjustment, in: -sliderLimit...sliderLimit, step: 0.1) {
+                        Text("血糖调整")
+                    } minimumValueLabel: {
+                        Image(systemName: "minus")
+                            .foregroundStyle(.secondary)
+                    } maximumValueLabel: {
+                        Image(systemName: "plus")
+                            .foregroundStyle(.secondary)
+                    }
+                    .onChange(of: adjustment) { _ in
+                        guard !isSyncingFromText else { return }
+                        let updated = max(baselineValue + adjustment, 0)
+                        valueText = String(format: "%.1f", updated)
+                        record.valueMMOL = updated
+                    }
+
+                    Text(selectionText)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 2)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            adjustValue(by: -0.1)
+                        } label: {
+                            Label("减", systemImage: "minus.circle.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            adjustValue(by: 0.1)
+                        } label: {
+                            Label("加", systemImage: "plus.circle.fill")
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                TextField("血糖（mmol/L）", text: $valueText)
                     .keyboardType(.decimalPad)
+                    .onChange(of: valueText) { _ in
+                        syncAdjustmentFromText()
+                    }
                 TextField("备注", text: noteBinding, axis: .vertical)
                     .lineLimit(2...4)
             }
+        }
+        .onAppear {
+            baselineValue = record.valueMMOL
+            valueText = String(format: "%.1f", record.valueMMOL)
+            syncAdjustmentFromText()
         }
     }
 
@@ -387,13 +633,36 @@ private struct BloodGlucoseRecordEditor: View {
         )
     }
 
-    private var valueTextBinding: Binding<String> {
-        Binding(
-            get: { String(format: "%.1f", record.valueMMOL) },
-            set: { newValue in
-                guard let value = Double(newValue.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
-                record.valueMMOL = value
-            }
-        )
+    private var sliderLimit: Double {
+        let baseLimit = 2.0
+        guard let value = Double(valueText.trimmingCharacters(in: .whitespacesAndNewlines)) else { return baseLimit }
+        return max(baseLimit, abs(value - baselineValue))
+    }
+
+    private var selectionText: String {
+        let currentValue = max(baselineValue + adjustment, 0)
+        let delta = currentValue - baselineValue
+        if abs(delta) < 0.05 {
+            return "当前选择：参考 \(String(format: "%.1f", currentValue)) mmol/L"
+        }
+        return "当前选择：\(String(format: "%.1f", currentValue)) mmol/L（\(delta > 0 ? "多" : "少") \(String(format: "%.1f", abs(delta))) mmol/L）"
+    }
+
+    private func syncAdjustmentFromText() {
+        guard let value = Double(valueText.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        record.valueMMOL = value
+        isSyncingFromText = true
+        adjustment = max(min(value - baselineValue, sliderLimit), -sliderLimit)
+        DispatchQueue.main.async {
+            isSyncingFromText = false
+        }
+    }
+
+    private func adjustValue(by delta: Double) {
+        let current = Double(valueText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? record.valueMMOL
+        let updated = max(current + delta, 0)
+        valueText = String(format: "%.1f", updated)
+        record.valueMMOL = updated
+        syncAdjustmentFromText()
     }
 }

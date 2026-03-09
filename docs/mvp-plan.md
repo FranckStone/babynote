@@ -1,4 +1,4 @@
-# BabyNote MVP Plan
+# 宝宝笔记 MVP Plan
 
 ## Target Users
 

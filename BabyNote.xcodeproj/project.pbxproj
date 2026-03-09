@@ -276,7 +276,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frank.babynote;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "宝宝笔记";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -307,7 +307,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.frank.babynote;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "宝宝笔记";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
