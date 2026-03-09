@@ -1,0 +1,323 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* BabyNoteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* BabyNoteApp.swift */; };
+		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
+		A10000000000000000000003 /* FeedingRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* FeedingRecord.swift */; };
+		A10000000000000000000004 /* WeightRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* WeightRecord.swift */; };
+		A10000000000000000000005 /* MedicationRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* MedicationRecord.swift */; };
+		A10000000000000000000006 /* CheckupRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* CheckupRecord.swift */; };
+		A10000000000000000000007 /* RecordType.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* RecordType.swift */; };
+		A10000000000000000000008 /* TimelineItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* TimelineItem.swift */; };
+		A10000000000000000000009 /* SampleDataSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* SampleDataSeeder.swift */; };
+		A1000000000000000000000A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* HomeView.swift */; };
+		A1000000000000000000000B /* QuickLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* QuickLogView.swift */; };
+		A1000000000000000000000C /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* TimelineView.swift */; };
+		A1000000000000000000000D /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* StatsView.swift */; };
+		A1000000000000000000000E /* SummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* SummaryCard.swift */; };
+		A1000000000000000000000F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* Assets.xcassets */; };
+		A10000000000000000000010 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* Preview Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000000 /* BabyNote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BabyNote.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000001 /* BabyNoteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BabyNoteApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* FeedingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* WeightRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* MedicationRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* CheckupRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckupRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* RecordType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordType.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* TimelineItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineItem.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* SampleDataSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDataSeeder.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000B /* QuickLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLogView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000000E /* SummaryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryCard.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000000000000000000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Content/Preview Assets.xcassets"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* BabyNote */,
+				A40000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* BabyNote */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* BabyNoteApp.swift */,
+				A20000000000000000000002 /* ContentView.swift */,
+				A40000000000000000000004 /* Models */,
+				A40000000000000000000005 /* Views */,
+				A40000000000000000000006 /* Components */,
+				A40000000000000000000007 /* Resources */,
+			);
+			path = BabyNote;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000000 /* BabyNote.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000003 /* FeedingRecord.swift */,
+				A20000000000000000000004 /* WeightRecord.swift */,
+				A20000000000000000000005 /* MedicationRecord.swift */,
+				A20000000000000000000006 /* CheckupRecord.swift */,
+				A20000000000000000000007 /* RecordType.swift */,
+				A20000000000000000000008 /* TimelineItem.swift */,
+				A20000000000000000000009 /* SampleDataSeeder.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000005 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000A /* HomeView.swift */,
+				A2000000000000000000000B /* QuickLogView.swift */,
+				A2000000000000000000000C /* TimelineView.swift */,
+				A2000000000000000000000D /* StatsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000006 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000E /* SummaryCard.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000007 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000F /* Info.plist */,
+				A20000000000000000000010 /* Assets.xcassets */,
+				A20000000000000000000011 /* Preview Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* BabyNote */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A60000000000000000000002 /* Build configuration list for PBXNativeTarget "BabyNote" */;
+			buildPhases = (
+				A30000000000000000000002 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+				A30000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BabyNote;
+			productName = BabyNote;
+			productReference = A20000000000000000000000 /* BabyNote.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A60000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+				};
+			};
+			buildConfigurationList = A60000000000000000000003 /* Build configuration list for PBXProject "BabyNote" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A40000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* BabyNote */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000F /* Assets.xcassets in Resources */,
+				A10000000000000000000010 /* Preview Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* BabyNoteApp.swift in Sources */,
+				A10000000000000000000002 /* ContentView.swift in Sources */,
+				A10000000000000000000003 /* FeedingRecord.swift in Sources */,
+				A10000000000000000000004 /* WeightRecord.swift in Sources */,
+				A10000000000000000000005 /* MedicationRecord.swift in Sources */,
+				A10000000000000000000006 /* CheckupRecord.swift in Sources */,
+				A10000000000000000000007 /* RecordType.swift in Sources */,
+				A10000000000000000000008 /* TimelineItem.swift in Sources */,
+				A10000000000000000000009 /* SampleDataSeeder.swift in Sources */,
+				A1000000000000000000000A /* HomeView.swift in Sources */,
+				A1000000000000000000000B /* QuickLogView.swift in Sources */,
+				A1000000000000000000000C /* TimelineView.swift in Sources */,
+				A1000000000000000000000D /* StatsView.swift in Sources */,
+				A1000000000000000000000E /* SummaryCard.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"BabyNote/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BabyNote/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frank.babynote;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "\"BabyNote/Resources/Preview Content\"";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BabyNote/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frank.babynote;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A70000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+			};
+			name = Debug;
+		};
+		A70000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A60000000000000000000002 /* Build configuration list for PBXNativeTarget "BabyNote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000001 /* Debug */,
+				A70000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A60000000000000000000003 /* Build configuration list for PBXProject "BabyNote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000003 /* Debug */,
+				A70000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}
