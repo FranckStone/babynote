@@ -7,9 +7,10 @@ enum SampleDataSeeder {
         feedings: [FeedingRecord],
         weights: [WeightRecord],
         medications: [MedicationRecord],
-        checkups: [CheckupRecord]
+        checkups: [CheckupRecord],
+        fetalMovements: [FetalMovementRecord]
     ) {
-        guard feedings.isEmpty, weights.isEmpty, medications.isEmpty, checkups.isEmpty else {
+        guard feedings.isEmpty, weights.isEmpty, medications.isEmpty, checkups.isEmpty, fetalMovements.isEmpty else {
             return
         }
 
@@ -49,6 +50,15 @@ enum SampleDataSeeder {
                 summary: "常规产检正常",
                 attachmentPath: "",
                 note: "下次两周后复查"
+            )
+        )
+
+        modelContext.insert(
+            FetalMovementRecord(
+                recordedAt: Calendar.current.date(byAdding: .hour, value: -4, to: now) ?? now,
+                durationMinutes: 12,
+                movementCount: 8,
+                note: "晚上比较明显"
             )
         )
 

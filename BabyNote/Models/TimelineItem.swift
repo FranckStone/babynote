@@ -1,5 +1,13 @@
 import Foundation
 
+enum TimelineRecord {
+    case feeding(FeedingRecord)
+    case weight(WeightRecord)
+    case medication(MedicationRecord)
+    case checkup(CheckupRecord)
+    case fetalMovement(FetalMovementRecord)
+}
+
 struct TimelineItem: Identifiable {
     let id: String
     let recordedAt: Date
@@ -7,12 +15,14 @@ struct TimelineItem: Identifiable {
     let title: String
     let detail: String
     let note: String
+    let record: TimelineRecord
 
     static func build(
         feedings: [FeedingRecord],
         weights: [WeightRecord],
         medications: [MedicationRecord],
-        checkups: [CheckupRecord]
+        checkups: [CheckupRecord],
+        fetalMovements: [FetalMovementRecord]
     ) -> [TimelineItem] {
         let feedingItems = feedings.map {
             TimelineItem(
@@ -21,7 +31,8 @@ struct TimelineItem: Identifiable {
                 type: .feeding,
                 title: $0.feedingType.displayName,
                 detail: feedingDetail(for: $0),
-                note: $0.note
+                note: $0.note,
+                record: .feeding($0)
             )
         }
 
@@ -32,7 +43,8 @@ struct TimelineItem: Identifiable {
                 type: .weight,
                 title: "体重记录",
                 detail: String(format: "%.1f kg", $0.weightKG),
-                note: $0.note
+                note: $0.note,
+                record: .weight($0)
             )
         }
 
@@ -43,7 +55,8 @@ struct TimelineItem: Identifiable {
                 type: .medication,
                 title: $0.name,
                 detail: $0.dosage,
-                note: $0.note
+                note: $0.note,
+                record: .medication($0)
             )
         }
 
@@ -54,11 +67,24 @@ struct TimelineItem: Identifiable {
                 type: .checkup,
                 title: $0.location,
                 detail: $0.summary,
-                note: $0.note
+                note: $0.note,
+                record: .checkup($0)
             )
         }
 
-        return (feedingItems + weightItems + medicationItems + checkupItems)
+        let fetalMovementItems = fetalMovements.map {
+            TimelineItem(
+                id: "fetalMovement-\($0.persistentModelID)",
+                recordedAt: $0.recordedAt,
+                type: .fetalMovement,
+                title: "胎动记录",
+                detail: fetalMovementDetail(for: $0),
+                note: $0.note,
+                record: .fetalMovement($0)
+            )
+        }
+
+        return (feedingItems + weightItems + medicationItems + checkupItems + fetalMovementItems)
             .sorted { $0.recordedAt > $1.recordedAt }
     }
 
@@ -71,5 +97,16 @@ struct TimelineItem: Identifiable {
             parts.append("\(durationMinutes) 分钟")
         }
         return parts.isEmpty ? "未填写时长或奶量" : parts.joined(separator: " · ")
+    }
+
+    private static func fetalMovementDetail(for record: FetalMovementRecord) -> String {
+        var parts: [String] = []
+        if let movementCount = record.movementCount {
+            parts.append("\(movementCount) 次")
+        }
+        if let durationMinutes = record.durationMinutes {
+            parts.append("\(durationMinutes) 分钟")
+        }
+        return parts.isEmpty ? "未填写次数或时长" : parts.joined(separator: " · ")
     }
 }

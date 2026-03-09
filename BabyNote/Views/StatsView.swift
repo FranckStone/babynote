@@ -5,6 +5,7 @@ struct StatsView: View {
     @Query(sort: \FeedingRecord.startedAt, order: .reverse) private var feedings: [FeedingRecord]
     @Query(sort: \WeightRecord.recordedAt, order: .reverse) private var weights: [WeightRecord]
     @Query(sort: \MedicationRecord.recordedAt, order: .reverse) private var medications: [MedicationRecord]
+    @Query(sort: \FetalMovementRecord.recordedAt, order: .reverse) private var fetalMovements: [FetalMovementRecord]
 
     private var averageFeedingIntervalHours: Double? {
         guard feedings.count >= 2 else { return nil }
@@ -41,6 +42,13 @@ struct StatsView: View {
                         tint: .blue
                     )
 
+                    SummaryCard(
+                        title: "胎动记录总数",
+                        value: "\(fetalMovements.count)",
+                        subtitle: fetalMovements.first.map { latestFetalMovementSubtitle(for: $0) } ?? "还没有记录",
+                        tint: .mint
+                    )
+
                     VStack(alignment: .leading, spacing: 10) {
                         Text("下一步建议")
                             .font(.headline)
@@ -59,5 +67,16 @@ struct StatsView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("统计")
         }
+    }
+
+    private func latestFetalMovementSubtitle(for record: FetalMovementRecord) -> String {
+        var parts: [String] = []
+        if let movementCount = record.movementCount {
+            parts.append("\(movementCount) 次")
+        }
+        if let durationMinutes = record.durationMinutes {
+            parts.append("\(durationMinutes) 分钟")
+        }
+        return parts.isEmpty ? "已记录" : parts.joined(separator: " · ")
     }
 }

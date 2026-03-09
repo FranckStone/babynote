@@ -9,6 +9,7 @@ struct BabyNoteApp: App {
             WeightRecord.self,
             MedicationRecord.self,
             CheckupRecord.self,
+            FetalMovementRecord.self,
         ])
 
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)

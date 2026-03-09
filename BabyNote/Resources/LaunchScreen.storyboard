@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23504" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23506"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="BrandMark" translatesAutoresizingMaskIntoConstraints="NO" id="8fQ-xz-8l6">
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="160" id="2sG-tV-Epp"/>
+                                    <constraint firstAttribute="height" constant="160" id="erC-0P-LrC"/>
+                                </constraints>
+                            </imageView>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="宝贝笔记" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="wom-rI-f6V">
+                                <fontDescription key="fontDescription" type="boldSystem" pointSize="34"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.96" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="Pregnancy &amp; newborn records" textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="2J3-Sd-qR2">
+                                <fontDescription key="fontDescription" type="system" weight="medium" pointSize="16"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="0.78" colorSpace="custom" customColorSpace="sRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
+                        <color key="backgroundColor" red="0.95686274509803926" green="0.41960784313725491" blue="0.40392156862745099" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="2J3-Sd-qR2" firstAttribute="top" secondItem="wom-rI-f6V" secondAttribute="bottom" constant="12" id="3yM-6t-BfC"/>
+                            <constraint firstItem="8fQ-xz-8l6" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="8RB-yo-bzA"/>
+                            <constraint firstItem="wom-rI-f6V" firstAttribute="top" secondItem="8fQ-xz-8l6" secondAttribute="bottom" constant="32" id="FuD-xf-tHE"/>
+                            <constraint firstItem="wom-rI-f6V" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="I4z-vl-fvK"/>
+                            <constraint firstItem="8fQ-xz-8l6" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-96" id="N4l-g5-Uz9"/>
+                            <constraint firstItem="2J3-Sd-qR2" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="dCg-AT-bS9"/>
+                            <constraint firstItem="2J3-Sd-qR2" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="Bcu-3y-fUS" secondAttribute="leading" constant="24" id="hzE-HL-Nsx"/>
+                            <constraint firstItem="Bcu-3y-fUS" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="2J3-Sd-qR2" secondAttribute="trailing" constant="24" id="rKg-Dj-DUN"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="52.671755725190835" y="11.267605633802818"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="BrandMark" width="1024" height="1024"/>
+    </resources>
+</document>

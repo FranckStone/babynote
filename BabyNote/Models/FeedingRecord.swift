@@ -4,7 +4,6 @@ import SwiftData
 enum FeedingType: String, Codable, CaseIterable, Identifiable {
     case leftBreast
     case rightBreast
-    case bottle
     case formula
 
     var id: String { rawValue }
@@ -13,7 +12,6 @@ enum FeedingType: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .leftBreast: "左侧母乳"
         case .rightBreast: "右侧母乳"
-        case .bottle: "瓶喂"
         case .formula: "奶粉"
         }
     }
@@ -42,7 +40,12 @@ final class FeedingRecord {
     }
 
     var feedingType: FeedingType {
-        get { FeedingType(rawValue: feedingTypeRawValue) ?? .leftBreast }
+        get {
+            if feedingTypeRawValue == "bottle" {
+                return .formula
+            }
+            return FeedingType(rawValue: feedingTypeRawValue) ?? .leftBreast
+        }
         set { feedingTypeRawValue = newValue.rawValue }
     }
 

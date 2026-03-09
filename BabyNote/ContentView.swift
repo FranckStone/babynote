@@ -7,6 +7,7 @@ struct ContentView: View {
     @Query(sort: \WeightRecord.recordedAt, order: .reverse) private var weights: [WeightRecord]
     @Query(sort: \MedicationRecord.recordedAt, order: .reverse) private var medications: [MedicationRecord]
     @Query(sort: \CheckupRecord.recordedAt, order: .reverse) private var checkups: [CheckupRecord]
+    @Query(sort: \FetalMovementRecord.recordedAt, order: .reverse) private var fetalMovements: [FetalMovementRecord]
 
     var body: some View {
         TabView {
@@ -36,7 +37,8 @@ struct ContentView: View {
                 feedings: feedings,
                 weights: weights,
                 medications: medications,
-                checkups: checkups
+                checkups: checkups,
+                fetalMovements: fetalMovements
             )
         }
     }
