@@ -1,13 +1,14 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FeedingRecord.startedAt, order: .reverse) private var feedings: [FeedingRecord]
-    @Query(sort: \WeightRecord.recordedAt, order: .reverse) private var weights: [WeightRecord]
-    @Query(sort: \MedicationRecord.recordedAt, order: .reverse) private var medications: [MedicationRecord]
-    @Query(sort: \CheckupRecord.recordedAt, order: .reverse) private var checkups: [CheckupRecord]
-    @Query(sort: \FetalMovementRecord.recordedAt, order: .reverse) private var fetalMovements: [FetalMovementRecord]
+    @Environment(\.managedObjectContext) private var managedObjectContext
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .reverse)]) private var feedings: FetchedResults<FeedingRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\WeightRecord.recordedAt, order: .reverse)]) private var weights: FetchedResults<WeightRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\MedicationRecord.recordedAt, order: .reverse)]) private var medications: FetchedResults<MedicationRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\CheckupRecord.recordedAt, order: .reverse)]) private var checkups: FetchedResults<CheckupRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FetalMovementRecord.recordedAt, order: .reverse)]) private var fetalMovements: FetchedResults<FetalMovementRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
 
     var body: some View {
         TabView {
@@ -33,12 +34,13 @@ struct ContentView: View {
         }
         .task {
             SampleDataSeeder.seedIfNeeded(
-                modelContext: modelContext,
-                feedings: feedings,
-                weights: weights,
-                medications: medications,
-                checkups: checkups,
-                fetalMovements: fetalMovements
+                context: managedObjectContext,
+                feedings: Array(feedings),
+                weights: Array(weights),
+                medications: Array(medications),
+                checkups: Array(checkups),
+                fetalMovements: Array(fetalMovements),
+                bloodGlucoses: Array(bloodGlucoses)
             )
         }
     }

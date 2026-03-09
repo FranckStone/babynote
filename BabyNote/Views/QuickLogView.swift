@@ -1,11 +1,13 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct QuickLogView: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FeedingRecord.startedAt, order: .reverse) private var feedings: [FeedingRecord]
-    @Query(sort: \WeightRecord.recordedAt, order: .reverse) private var weights: [WeightRecord]
+    @Environment(\.managedObjectContext) private var managedObjectContext
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .reverse)]) private var feedings: FetchedResults<FeedingRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\WeightRecord.recordedAt, order: .reverse)]) private var weights: FetchedResults<WeightRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
 
     @State private var recordType: RecordType = .feeding
 
@@ -24,6 +26,7 @@ struct QuickLogView: View {
     @State private var weightNote = ""
     @State private var didApplySuggestedWeight = false
     @State private var weightAdjustment: Double = 0
+    @State private var isSyncingWeightFromText = false
 
     @State private var medicationRecordedAt = Date()
     @State private var medicationName = ""
@@ -40,6 +43,10 @@ struct QuickLogView: View {
     @State private var fetalMovementDuration = ""
     @State private var fetalMovementCount = ""
     @State private var fetalMovementNote = ""
+    @State private var bloodGlucoseRecordedAt = Date()
+    @State private var bloodGlucoseMoment: BloodGlucoseMoment = .beforeBreakfast
+    @State private var bloodGlucoseValue = ""
+    @State private var bloodGlucoseNote = ""
 
     private let showsTypePicker: Bool
 
@@ -74,8 +81,11 @@ struct QuickLogView: View {
                     checkupForm
                 case .fetalMovement:
                     fetalMovementForm
+                case .bloodGlucose:
+                    bloodGlucoseForm
                 }
             }
+            .adaptiveContentWidth(horizontalSizeClass == .regular ? 760 : .infinity)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .environment(\.locale, Locale(identifier: "zh_CN"))
@@ -95,6 +105,7 @@ struct QuickLogView: View {
                 }
             }
         }
+        .presentationDetents(horizontalSizeClass == .regular ? [.large] : [.medium, .large])
     }
 
     private var navigationTitle: String {
@@ -104,7 +115,7 @@ struct QuickLogView: View {
     private var latestFormulaAmountML: Int? {
         feedings.compactMap { record in
             guard record.feedingType == .formula else { return nil }
-            guard let amountML = record.amountML else { return nil }
+            guard let amountML = record.amountMLValue else { return nil }
             return Int(amountML)
         }.first
     }
@@ -128,8 +139,12 @@ struct QuickLogView: View {
         weights.first?.weightKG
     }
 
-    private var suggestedWeightKG: Double {
-        latestWeightKG ?? 60.0
+    private var suggestedWeightJin: Double {
+        WeightDisplay.kgToJin(latestWeightKG ?? 60.0)
+    }
+
+    private var latestBloodGlucoseMMOL: Double? {
+        bloodGlucoses.first?.valueMMOL
     }
 
     private var isBreastFeeding: Bool {
@@ -161,7 +176,7 @@ struct QuickLogView: View {
             applySuggestedFeedingAmountIfNeeded()
             applySuggestedFeedingDurationIfNeeded()
         }
-        .onChange(of: feedingType) {
+        .onChange(of: feedingType) { _ in
             feedingAmountAdjustment = 0
             feedingDurationAdjustment = 0
             applySuggestedFeedingAmountIfNeeded(force: true)
@@ -202,7 +217,7 @@ struct QuickLogView: View {
                 Image(systemName: "plus")
                     .foregroundStyle(.secondary)
             }
-            .onChange(of: feedingDurationAdjustment) {
+            .onChange(of: feedingDurationAdjustment) { _ in
                 setFeedingDuration(minutes: suggestedBreastDurationMinutes + Int(feedingDurationAdjustment))
             }
 
@@ -211,6 +226,11 @@ struct QuickLogView: View {
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 2)
+
+            microAdjustButtons(
+                minusAction: { adjustBreastDuration(by: -1) },
+                plusAction: { adjustBreastDuration(by: 1) }
+            )
         }
     }
 
@@ -247,7 +267,7 @@ struct QuickLogView: View {
                 Image(systemName: "plus")
                     .foregroundStyle(.secondary)
             }
-            .onChange(of: feedingAmountAdjustment) {
+            .onChange(of: feedingAmountAdjustment) { _ in
                 feedingAmount = "\(max(suggestedFeedingAmountML + Int(feedingAmountAdjustment), 0))"
             }
 
@@ -257,9 +277,14 @@ struct QuickLogView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 2)
 
+            microAdjustButtons(
+                minusAction: { adjustFeedingAmount(by: -5) },
+                plusAction: { adjustFeedingAmount(by: 5) }
+            )
+
             TextField("奶量（ml，可选）", text: $feedingAmount)
                 .keyboardType(.decimalPad)
-                .onChange(of: feedingAmount) {
+                .onChange(of: feedingAmount) { _ in
                     syncFeedingAmountAdjustment()
                 }
         }
@@ -280,29 +305,30 @@ struct QuickLogView: View {
                     }
 
                     HStack {
-                        Text("少 \(String(format: "%.1f", weightSliderLimitKG)) kg")
+                        Text("少 \(String(format: "%.1f", weightSliderLimitJin)) 斤")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("参考 \(String(format: "%.1f", suggestedWeightKG)) kg")
+                        Text("参考 \(String(format: "%.1f", suggestedWeightJin)) 斤")
                             .font(.caption.weight(.semibold))
                         Spacer()
-                        Text("多 \(String(format: "%.1f", weightSliderLimitKG)) kg")
+                        Text("多 \(String(format: "%.1f", weightSliderLimitJin)) 斤")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
-                    Slider(value: $weightAdjustment, in: -weightSliderLimitKG...weightSliderLimitKG, step: 0.1) {
-                        Text("体重调整")
-                    } minimumValueLabel: {
-                        Image(systemName: "minus")
-                            .foregroundStyle(.secondary)
+            Slider(value: $weightAdjustment, in: -weightSliderLimitJin...weightSliderLimitJin, step: 0.1) {
+                Text("体重调整")
+            } minimumValueLabel: {
+                Image(systemName: "minus")
+                    .foregroundStyle(.secondary)
                     } maximumValueLabel: {
                         Image(systemName: "plus")
                             .foregroundStyle(.secondary)
                     }
-                    .onChange(of: weightAdjustment) {
-                        weightKG = String(format: "%.1f", max(suggestedWeightKG + weightAdjustment, 0))
+                    .onChange(of: weightAdjustment) { _ in
+                        guard !isSyncingWeightFromText else { return }
+                        weightKG = String(format: "%.1f", max(suggestedWeightJin + weightAdjustment, 0))
                     }
 
                     Text(weightSelectionText)
@@ -310,11 +336,16 @@ struct QuickLogView: View {
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 2)
+
+                    microAdjustButtons(
+                        minusAction: { adjustWeight(by: -0.1) },
+                        plusAction: { adjustWeight(by: 0.1) }
+                    )
                 }
 
-                TextField("体重（kg）", text: $weightKG)
+                TextField("体重（斤）", text: $weightKG)
                     .keyboardType(.decimalPad)
-                    .onChange(of: weightKG) {
+                    .onChange(of: weightKG) { _ in
                         syncWeightAdjustment()
                     }
                 TextField("备注", text: $weightNote, axis: .vertical)
@@ -366,6 +397,47 @@ struct QuickLogView: View {
         }
     }
 
+    private var bloodGlucoseForm: some View {
+        Group {
+            Section("血糖信息") {
+                DatePicker("记录时间", selection: $bloodGlucoseRecordedAt)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("快捷时段")
+                        .font(.subheadline.weight(.medium))
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(BloodGlucoseMoment.allCases) { moment in
+                            Button {
+                                bloodGlucoseMoment = moment
+                            } label: {
+                                Text(moment.displayName)
+                                    .font(.subheadline.weight(.medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(bloodGlucoseMoment == moment ? Color.accentColor : Color(.secondarySystemBackground))
+                                    .foregroundStyle(bloodGlucoseMoment == moment ? .white : .primary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                TextField("血糖（mmol/L）", text: $bloodGlucoseValue)
+                    .keyboardType(.decimalPad)
+                TextField("备注", text: $bloodGlucoseNote, axis: .vertical)
+                    .lineLimit(2...4)
+
+                if let latestBloodGlucoseMMOL {
+                    Text("最近：\(String(format: "%.1f", latestBloodGlucoseMMOL)) mmol/L")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     private var canSave: Bool {
         switch recordType {
         case .feeding:
@@ -380,64 +452,72 @@ struct QuickLogView: View {
                 !checkupSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .fetalMovement:
             return Int(fetalMovementDuration) != nil || Int(fetalMovementCount) != nil || !fetalMovementNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .bloodGlucose:
+            return Double(bloodGlucoseValue.trimmingCharacters(in: .whitespacesAndNewlines)) != nil
         }
     }
 
     private func saveRecord() {
         switch recordType {
         case .feeding:
-            let record = FeedingRecord(
+            _ = FeedingRecord(
+                context: managedObjectContext,
                 startedAt: feedingStartedAt,
                 endedAt: feedingEndedAt,
                 feedingType: feedingType,
                 amountML: Double(feedingAmount),
                 note: feedingNote
             )
-            modelContext.insert(record)
 
         case .weight:
             guard let value = Double(weightKG) else { return }
-            modelContext.insert(
-                WeightRecord(
-                    recordedAt: weightRecordedAt,
-                    weightKG: value,
-                    note: weightNote
-                )
+            _ = WeightRecord(
+                context: managedObjectContext,
+                recordedAt: weightRecordedAt,
+                weightKG: WeightDisplay.jinToKG(value),
+                note: weightNote
             )
 
         case .medication:
-            modelContext.insert(
-                MedicationRecord(
-                    recordedAt: medicationRecordedAt,
-                    name: medicationName,
-                    dosage: medicationDosage,
-                    note: medicationNote
-                )
+            _ = MedicationRecord(
+                context: managedObjectContext,
+                recordedAt: medicationRecordedAt,
+                name: medicationName,
+                dosage: medicationDosage,
+                note: medicationNote
             )
 
         case .checkup:
-            modelContext.insert(
-                CheckupRecord(
-                    recordedAt: checkupRecordedAt,
-                    location: checkupLocation,
-                    summary: checkupSummary,
-                    attachmentPath: checkupAttachment,
-                    note: checkupNote
-                )
+            _ = CheckupRecord(
+                context: managedObjectContext,
+                recordedAt: checkupRecordedAt,
+                location: checkupLocation,
+                summary: checkupSummary,
+                attachmentPath: checkupAttachment,
+                note: checkupNote
             )
 
         case .fetalMovement:
-            modelContext.insert(
-                FetalMovementRecord(
-                    recordedAt: fetalMovementRecordedAt,
-                    durationMinutes: Int(fetalMovementDuration),
-                    movementCount: Int(fetalMovementCount),
-                    note: fetalMovementNote
-                )
+            _ = FetalMovementRecord(
+                context: managedObjectContext,
+                recordedAt: fetalMovementRecordedAt,
+                durationMinutes: Int(fetalMovementDuration),
+                movementCount: Int(fetalMovementCount),
+                note: fetalMovementNote
+            )
+
+        case .bloodGlucose:
+            guard let value = Double(bloodGlucoseValue.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+            _ = BloodGlucoseRecord(
+                context: managedObjectContext,
+                recordedAt: bloodGlucoseRecordedAt,
+                moment: bloodGlucoseMoment,
+                valueMMOL: value,
+                note: bloodGlucoseNote
             )
         }
 
-        try? modelContext.save()
+        try? managedObjectContext.save()
         dismiss()
     }
 
@@ -460,15 +540,19 @@ struct QuickLogView: View {
     }
 
     private var feedingAmountSliderLimit: Int {
-        max(20, suggestedFeedingAmountML / 2)
+        let baseLimit = max(20, suggestedFeedingAmountML / 2)
+        guard let amount = Double(feedingAmount) else { return baseLimit }
+        return max(baseLimit, abs(Int(amount) - suggestedFeedingAmountML))
     }
 
     private var breastDurationSliderLimit: Int {
         max(10, suggestedBreastDurationMinutes)
     }
 
-    private var weightSliderLimitKG: Double {
-        5.0
+    private var weightSliderLimitJin: Double {
+        let baseLimit = 5.0
+        guard let weight = Double(weightKG) else { return baseLimit }
+        return max(baseLimit, abs(weight - suggestedWeightJin))
     }
 
     private var feedingAmountSelectionText: String {
@@ -491,18 +575,18 @@ struct QuickLogView: View {
 
     private var weightSuggestionTitle: String {
         if let latestWeightKG {
-            return "上次 \(String(format: "%.1f", latestWeightKG)) kg"
+            return "上次 \(WeightDisplay.jinText(fromKG: latestWeightKG))"
         }
-        return "默认 60.0 kg"
+        return "默认 120.0 斤"
     }
 
     private var weightSelectionText: String {
-        let currentWeight = max(suggestedWeightKG + weightAdjustment, 0)
-        let delta = currentWeight - suggestedWeightKG
+        let currentWeight = max(suggestedWeightJin + weightAdjustment, 0)
+        let delta = currentWeight - suggestedWeightJin
         if abs(delta) < 0.05 {
-            return "当前选择：参考 \(String(format: "%.1f", currentWeight)) kg"
+            return "当前选择：参考 \(String(format: "%.1f", currentWeight)) 斤"
         }
-        return "当前选择：\(String(format: "%.1f", currentWeight)) kg（\(delta > 0 ? "多" : "少") \(String(format: "%.1f", abs(delta))) kg）"
+        return "当前选择：\(String(format: "%.1f", currentWeight)) 斤（\(delta > 0 ? "多" : "少") \(String(format: "%.1f", abs(delta))) 斤）"
     }
 
     private func applySuggestedFeedingAmountIfNeeded(force: Bool = false) {
@@ -541,13 +625,59 @@ struct QuickLogView: View {
         guard force || !didApplySuggestedWeight else { return }
         guard force || weightKG.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         weightAdjustment = 0
-        weightKG = String(format: "%.1f", suggestedWeightKG)
+        weightKG = String(format: "%.1f", suggestedWeightJin)
         didApplySuggestedWeight = true
     }
 
     private func syncWeightAdjustment() {
         guard let weight = Double(weightKG) else { return }
-        let delta = weight - suggestedWeightKG
-        weightAdjustment = max(min(delta, weightSliderLimitKG), -weightSliderLimitKG)
+        let delta = weight - suggestedWeightJin
+        isSyncingWeightFromText = true
+        weightAdjustment = max(min(delta, weightSliderLimitJin), -weightSliderLimitJin)
+        DispatchQueue.main.async {
+            isSyncingWeightFromText = false
+        }
+    }
+
+    private func adjustFeedingAmount(by delta: Int) {
+        let current = Int(feedingAmount) ?? suggestedFeedingAmountML
+        let updated = max(current + delta, 0)
+        feedingAmount = "\(updated)"
+        syncFeedingAmountAdjustment()
+    }
+
+    private func adjustBreastDuration(by delta: Int) {
+        let updated = max(selectedFeedingDurationMinutes + delta, 1)
+        setFeedingDuration(minutes: updated)
+        feedingDurationAdjustment = Double(updated - suggestedBreastDurationMinutes)
+    }
+
+    private func adjustWeight(by delta: Double) {
+        let current = Double(weightKG) ?? suggestedWeightJin
+        let updated = max(current + delta, 0)
+        weightKG = String(format: "%.1f", updated)
+        syncWeightAdjustment()
+    }
+
+    private func microAdjustButtons(minusAction: @escaping () -> Void, plusAction: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            Button(action: minusAction) {
+                Label("减", systemImage: "minus.circle.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: plusAction) {
+                Label("加", systemImage: "plus.circle.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
     }
 }

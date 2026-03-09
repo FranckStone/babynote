@@ -1,17 +1,24 @@
+import CoreData
 import Foundation
-import SwiftData
 
-@Model
-final class MedicationRecord {
-    var recordedAt: Date
-    var name: String
-    var dosage: String
-    var note: String
+@objc(MedicationRecord)
+final class MedicationRecord: NSManagedObject, Identifiable {
+    @NSManaged var recordedAt: Date
+    @NSManaged var name: String
+    @NSManaged var dosage: String
+    @NSManaged var note: String
 
-    init(recordedAt: Date, name: String, dosage: String, note: String = "") {
+    convenience init(context: NSManagedObjectContext, recordedAt: Date, name: String, dosage: String, note: String = "") {
+        self.init(context: context)
         self.recordedAt = recordedAt
         self.name = name
         self.dosage = dosage
         self.note = note
+    }
+}
+
+extension MedicationRecord {
+    @nonobjc class func fetchRequest() -> NSFetchRequest<MedicationRecord> {
+        NSFetchRequest<MedicationRecord>(entityName: "MedicationRecord")
     }
 }

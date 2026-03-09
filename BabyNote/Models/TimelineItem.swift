@@ -6,6 +6,7 @@ enum TimelineRecord {
     case medication(MedicationRecord)
     case checkup(CheckupRecord)
     case fetalMovement(FetalMovementRecord)
+    case bloodGlucose(BloodGlucoseRecord)
 }
 
 struct TimelineItem: Identifiable {
@@ -22,11 +23,12 @@ struct TimelineItem: Identifiable {
         weights: [WeightRecord],
         medications: [MedicationRecord],
         checkups: [CheckupRecord],
-        fetalMovements: [FetalMovementRecord]
+        fetalMovements: [FetalMovementRecord],
+        bloodGlucoses: [BloodGlucoseRecord]
     ) -> [TimelineItem] {
         let feedingItems = feedings.map {
             TimelineItem(
-                id: "feeding-\($0.persistentModelID)",
+                id: "feeding-\($0.objectID.uriRepresentation().absoluteString)",
                 recordedAt: $0.startedAt,
                 type: .feeding,
                 title: $0.feedingType.displayName,
@@ -38,11 +40,11 @@ struct TimelineItem: Identifiable {
 
         let weightItems = weights.map {
             TimelineItem(
-                id: "weight-\($0.persistentModelID)",
+                id: "weight-\($0.objectID.uriRepresentation().absoluteString)",
                 recordedAt: $0.recordedAt,
                 type: .weight,
                 title: "体重记录",
-                detail: String(format: "%.1f kg", $0.weightKG),
+                detail: WeightDisplay.jinText(fromKG: $0.weightKG),
                 note: $0.note,
                 record: .weight($0)
             )
@@ -50,7 +52,7 @@ struct TimelineItem: Identifiable {
 
         let medicationItems = medications.map {
             TimelineItem(
-                id: "medication-\($0.persistentModelID)",
+                id: "medication-\($0.objectID.uriRepresentation().absoluteString)",
                 recordedAt: $0.recordedAt,
                 type: .medication,
                 title: $0.name,
@@ -62,7 +64,7 @@ struct TimelineItem: Identifiable {
 
         let checkupItems = checkups.map {
             TimelineItem(
-                id: "checkup-\($0.persistentModelID)",
+                id: "checkup-\($0.objectID.uriRepresentation().absoluteString)",
                 recordedAt: $0.recordedAt,
                 type: .checkup,
                 title: $0.location,
@@ -74,7 +76,7 @@ struct TimelineItem: Identifiable {
 
         let fetalMovementItems = fetalMovements.map {
             TimelineItem(
-                id: "fetalMovement-\($0.persistentModelID)",
+                id: "fetalMovement-\($0.objectID.uriRepresentation().absoluteString)",
                 recordedAt: $0.recordedAt,
                 type: .fetalMovement,
                 title: "胎动记录",
@@ -84,13 +86,25 @@ struct TimelineItem: Identifiable {
             )
         }
 
-        return (feedingItems + weightItems + medicationItems + checkupItems + fetalMovementItems)
+        let bloodGlucoseItems = bloodGlucoses.map {
+            TimelineItem(
+                id: "bloodGlucose-\($0.objectID.uriRepresentation().absoluteString)",
+                recordedAt: $0.recordedAt,
+                type: .bloodGlucose,
+                title: "血糖监测",
+                detail: bloodGlucoseDetail(for: $0),
+                note: $0.note,
+                record: .bloodGlucose($0)
+            )
+        }
+
+        return (feedingItems + weightItems + medicationItems + checkupItems + fetalMovementItems + bloodGlucoseItems)
             .sorted { $0.recordedAt > $1.recordedAt }
     }
 
     private static func feedingDetail(for record: FeedingRecord) -> String {
         var parts: [String] = []
-        if let amountML = record.amountML {
+        if let amountML = record.amountMLValue {
             parts.append("\(Int(amountML)) ml")
         }
         if let durationMinutes = record.durationMinutes {
@@ -108,5 +122,9 @@ struct TimelineItem: Identifiable {
             parts.append("\(durationMinutes) 分钟")
         }
         return parts.isEmpty ? "未填写次数或时长" : parts.joined(separator: " · ")
+    }
+
+    private static func bloodGlucoseDetail(for record: BloodGlucoseRecord) -> String {
+        "\(record.moment.displayName) · \(String(format: "%.1f", record.valueMMOL)) mmol/L"
     }
 }

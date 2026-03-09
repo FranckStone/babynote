@@ -1,5 +1,5 @@
+import CoreData
 import Foundation
-import SwiftData
 
 enum FeedingType: String, Codable, CaseIterable, Identifiable {
     case leftBreast
@@ -17,27 +17,13 @@ enum FeedingType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-@Model
-final class FeedingRecord {
-    var startedAt: Date
-    var endedAt: Date?
-    var feedingTypeRawValue: String
-    var amountML: Double?
-    var note: String
-
-    init(
-        startedAt: Date,
-        endedAt: Date? = nil,
-        feedingType: FeedingType,
-        amountML: Double? = nil,
-        note: String = ""
-    ) {
-        self.startedAt = startedAt
-        self.endedAt = endedAt
-        self.feedingTypeRawValue = feedingType.rawValue
-        self.amountML = amountML
-        self.note = note
-    }
+@objc(FeedingRecord)
+final class FeedingRecord: NSManagedObject, Identifiable {
+    @NSManaged var startedAt: Date
+    @NSManaged var endedAt: Date?
+    @NSManaged var feedingTypeRawValue: String
+    @NSManaged var amountML: NSNumber?
+    @NSManaged var note: String
 
     var feedingType: FeedingType {
         get {
@@ -49,8 +35,35 @@ final class FeedingRecord {
         set { feedingTypeRawValue = newValue.rawValue }
     }
 
+    var amountMLValue: Double? {
+        get { amountML?.doubleValue }
+        set { amountML = newValue.map(NSNumber.init(value:)) }
+    }
+
     var durationMinutes: Int? {
         guard let endedAt else { return nil }
         return max(Int(endedAt.timeIntervalSince(startedAt) / 60), 0)
+    }
+
+    convenience init(
+        context: NSManagedObjectContext,
+        startedAt: Date,
+        endedAt: Date? = nil,
+        feedingType: FeedingType,
+        amountML: Double? = nil,
+        note: String = ""
+    ) {
+        self.init(context: context)
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.feedingTypeRawValue = feedingType.rawValue
+        self.amountMLValue = amountML
+        self.note = note
+    }
+}
+
+extension FeedingRecord {
+    @nonobjc class func fetchRequest() -> NSFetchRequest<FeedingRecord> {
+        NSFetchRequest<FeedingRecord>(entityName: "FeedingRecord")
     }
 }

@@ -27,6 +27,10 @@
 		A10000000000000000000012 /* FetalMovementRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* FetalMovementRecord.swift */; };
 		A10000000000000000000013 /* RecordEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* RecordEditorView.swift */; };
 		A10000000000000000000014 /* DateDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* DateDisplay.swift */; };
+		A10000000000000000000015 /* WeightDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* WeightDisplay.swift */; };
+		A10000000000000000000016 /* AdaptiveWidthModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* AdaptiveWidthModifier.swift */; };
+		A10000000000000000000017 /* BloodGlucoseRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* BloodGlucoseRecord.swift */; };
+		A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* BloodGlucoseStatsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +56,11 @@
 		A20000000000000000000013 /* FetalMovementRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetalMovementRecord.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* RecordEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordEditorView.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* DateDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateDisplay.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* WeightDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightDisplay.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* AdaptiveWidthModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveWidthModifier.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* BloodGlucoseRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodGlucoseRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* BloodGlucoseStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodGlucoseStatsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* BabyNote.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BabyNote.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +115,8 @@
 				A20000000000000000000009 /* SampleDataSeeder.swift */,
 				A20000000000000000000013 /* FetalMovementRecord.swift */,
 				A20000000000000000000015 /* DateDisplay.swift */,
+				A20000000000000000000016 /* WeightDisplay.swift */,
+				A20000000000000000000018 /* BloodGlucoseRecord.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -118,6 +129,7 @@
 				A20000000000000000000014 /* RecordEditorView.swift */,
 				A2000000000000000000000C /* TimelineView.swift */,
 				A2000000000000000000000D /* StatsView.swift */,
+				A20000000000000000000019 /* BloodGlucoseStatsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -125,6 +137,7 @@
 		A40000000000000000000006 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000017 /* AdaptiveWidthModifier.swift */,
 				A2000000000000000000000E /* SummaryCard.swift */,
 			);
 			path = Components;
@@ -133,6 +146,7 @@
 		A40000000000000000000007 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				A2000000000000000000001A /* BabyNote.entitlements */,
 				A2000000000000000000000F /* Info.plist */,
 				A20000000000000000000012 /* LaunchScreen.storyboard */,
 				A20000000000000000000010 /* Assets.xcassets */,
@@ -230,6 +244,10 @@
 				A10000000000000000000012 /* FetalMovementRecord.swift in Sources */,
 				A10000000000000000000013 /* RecordEditorView.swift in Sources */,
 				A10000000000000000000014 /* DateDisplay.swift in Sources */,
+				A10000000000000000000015 /* WeightDisplay.swift in Sources */,
+				A10000000000000000000016 /* AdaptiveWidthModifier.swift in Sources */,
+				A10000000000000000000017 /* BloodGlucoseRecord.swift in Sources */,
+				A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -250,8 +268,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = BabyNote/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "宝贝笔记";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_CFBundleDisplayName = "宝宝笔记";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -263,7 +281,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -281,8 +299,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = BabyNote/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "宝贝笔记";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				INFOPLIST_KEY_CFBundleDisplayName = "宝宝笔记";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -294,7 +312,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

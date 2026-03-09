@@ -1,18 +1,20 @@
-import SwiftData
+import CoreData
 import SwiftUI
 
 struct TimelineView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \FeedingRecord.startedAt, order: .reverse) private var feedings: [FeedingRecord]
-    @Query(sort: \WeightRecord.recordedAt, order: .reverse) private var weights: [WeightRecord]
-    @Query(sort: \MedicationRecord.recordedAt, order: .reverse) private var medications: [MedicationRecord]
-    @Query(sort: \CheckupRecord.recordedAt, order: .reverse) private var checkups: [CheckupRecord]
-    @Query(sort: \FetalMovementRecord.recordedAt, order: .reverse) private var fetalMovements: [FetalMovementRecord]
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.managedObjectContext) private var managedObjectContext
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .reverse)]) private var feedings: FetchedResults<FeedingRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\WeightRecord.recordedAt, order: .reverse)]) private var weights: FetchedResults<WeightRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\MedicationRecord.recordedAt, order: .reverse)]) private var medications: FetchedResults<MedicationRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\CheckupRecord.recordedAt, order: .reverse)]) private var checkups: FetchedResults<CheckupRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FetalMovementRecord.recordedAt, order: .reverse)]) private var fetalMovements: FetchedResults<FetalMovementRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
     @State private var selectedType: RecordType?
     @State private var selectedItem: TimelineItem?
 
     private var filteredItems: [TimelineItem] {
-        let items = TimelineItem.build(feedings: feedings, weights: weights, medications: medications, checkups: checkups, fetalMovements: fetalMovements)
+        let items = TimelineItem.build(feedings: Array(feedings), weights: Array(weights), medications: Array(medications), checkups: Array(checkups), fetalMovements: Array(fetalMovements), bloodGlucoses: Array(bloodGlucoses))
         guard let selectedType else { return items }
         return items.filter { $0.type == selectedType }
     }
@@ -35,7 +37,20 @@ struct TimelineView: View {
 
                 if filteredItems.isEmpty {
                     Section {
-                        ContentUnavailableView("还没有时间线记录", systemImage: "calendar")
+                        if #available(iOS 17.0, *) {
+                            ContentUnavailableView("还没有时间线记录", systemImage: "calendar")
+                        } else {
+                            VStack(spacing: 8) {
+                                Image(systemName: "calendar")
+                                    .font(.title2)
+                                    .foregroundStyle(.secondary)
+                                Text("还没有时间线记录")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 24)
+                        }
                     }
                 } else {
                     ForEach(filteredItems) { item in
@@ -74,6 +89,7 @@ struct TimelineView: View {
                     }
                 }
             }
+            .adaptiveContentWidth(horizontalSizeClass == .regular ? 900 : .infinity)
             .navigationTitle("时间线")
             .sheet(item: $selectedItem) { item in
                 RecordEditorView(item: item)
@@ -101,17 +117,19 @@ struct TimelineView: View {
     private func delete(_ item: TimelineItem) {
         switch item.record {
         case .feeding(let record):
-            modelContext.delete(record)
+            managedObjectContext.delete(record)
         case .weight(let record):
-            modelContext.delete(record)
+            managedObjectContext.delete(record)
         case .medication(let record):
-            modelContext.delete(record)
+            managedObjectContext.delete(record)
         case .checkup(let record):
-            modelContext.delete(record)
+            managedObjectContext.delete(record)
         case .fetalMovement(let record):
-            modelContext.delete(record)
+            managedObjectContext.delete(record)
+        case .bloodGlucose(let record):
+            managedObjectContext.delete(record)
         }
 
-        try? modelContext.save()
+        try? managedObjectContext.save()
     }
 }

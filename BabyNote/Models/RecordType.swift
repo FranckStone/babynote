@@ -6,6 +6,7 @@ enum RecordType: String, CaseIterable, Identifiable {
     case medication
     case checkup
     case fetalMovement
+    case bloodGlucose
 
     var id: String { rawValue }
 
@@ -16,6 +17,7 @@ enum RecordType: String, CaseIterable, Identifiable {
         case .medication: "药物"
         case .checkup: "检查"
         case .fetalMovement: "胎动"
+        case .bloodGlucose: "血糖"
         }
     }
 
@@ -26,6 +28,7 @@ enum RecordType: String, CaseIterable, Identifiable {
         case .medication: "pills.fill"
         case .checkup: "cross.case.fill"
         case .fetalMovement: "figure.and.child.holdinghands"
+        case .bloodGlucose: "waveform.path.ecg"
         }
     }
 }

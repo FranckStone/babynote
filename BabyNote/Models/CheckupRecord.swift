@@ -1,25 +1,33 @@
+import CoreData
 import Foundation
-import SwiftData
 
-@Model
-final class CheckupRecord {
-    var recordedAt: Date
-    var location: String
-    var summary: String
-    var attachmentPath: String
-    var note: String
+@objc(CheckupRecord)
+final class CheckupRecord: NSManagedObject, Identifiable {
+    @NSManaged var recordedAt: Date
+    @NSManaged var location: String
+    @NSManaged var summary: String
+    @NSManaged var attachmentPath: String
+    @NSManaged var note: String
 
-    init(
+    convenience init(
+        context: NSManagedObjectContext,
         recordedAt: Date,
         location: String,
         summary: String,
         attachmentPath: String = "",
         note: String = ""
     ) {
+        self.init(context: context)
         self.recordedAt = recordedAt
         self.location = location
         self.summary = summary
         self.attachmentPath = attachmentPath
         self.note = note
+    }
+}
+
+extension CheckupRecord {
+    @nonobjc class func fetchRequest() -> NSFetchRequest<CheckupRecord> {
+        NSFetchRequest<CheckupRecord>(entityName: "CheckupRecord")
     }
 }
