@@ -32,6 +32,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("统计", systemImage: "chart.line.uptrend.xyaxis")
                 }
+
+            RecipeListView()
+                .tabItem {
+                    Label("食谱", systemImage: "fork.knife")
+                }
         }
         .task {
             guard !hasTriggeredSeed else { return }

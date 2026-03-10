@@ -31,6 +31,9 @@
 		A10000000000000000000016 /* AdaptiveWidthModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* AdaptiveWidthModifier.swift */; };
 		A10000000000000000000017 /* BloodGlucoseRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* BloodGlucoseRecord.swift */; };
 		A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* BloodGlucoseStatsView.swift */; };
+		A10000000000000000000019 /* FeedingStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* FeedingStatsView.swift */; };
+		A1000000000000000000001A /* WeightStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* WeightStatsView.swift */; };
+		A1000000000000000000001B /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* RecipeListView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +64,9 @@
 		A20000000000000000000018 /* BloodGlucoseRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodGlucoseRecord.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* BloodGlucoseStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodGlucoseStatsView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001A /* BabyNote.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BabyNote.entitlements; sourceTree = "<group>"; };
+		A2000000000000000000001B /* FeedingStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingStatsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* WeightStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightStatsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001D /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,6 +136,9 @@
 				A2000000000000000000000C /* TimelineView.swift */,
 				A2000000000000000000000D /* StatsView.swift */,
 				A20000000000000000000019 /* BloodGlucoseStatsView.swift */,
+				A2000000000000000000001B /* FeedingStatsView.swift */,
+				A2000000000000000000001C /* WeightStatsView.swift */,
+				A2000000000000000000001D /* RecipeListView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -248,6 +257,9 @@
 				A10000000000000000000016 /* AdaptiveWidthModifier.swift in Sources */,
 				A10000000000000000000017 /* BloodGlucoseRecord.swift in Sources */,
 				A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */,
+				A10000000000000000000019 /* FeedingStatsView.swift in Sources */,
+				A1000000000000000000001A /* WeightStatsView.swift in Sources */,
+				A1000000000000000000001B /* RecipeListView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

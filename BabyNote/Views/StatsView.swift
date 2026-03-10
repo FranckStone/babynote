@@ -36,19 +36,29 @@ struct StatsView: View {
             ScrollView {
                 VStack(spacing: 12) {
                     LazyVGrid(columns: statsColumns, spacing: 12) {
-                        SummaryCard(
-                            title: "喂奶记录总数",
-                            value: "\(feedings.count)",
-                            subtitle: averageFeedingIntervalHours.map { String(format: "平均间隔 %.1f 小时", $0) } ?? "至少需要两条喂奶记录",
-                            tint: .pink
-                        )
+                        NavigationLink {
+                            FeedingStatsView(records: Array(feedings))
+                        } label: {
+                            SummaryCard(
+                                title: "喂奶记录总数",
+                                value: "\(feedings.count)",
+                                subtitle: averageFeedingIntervalHours.map { String(format: "平均间隔 %.1f 小时", $0) } ?? "至少需要两条喂奶记录",
+                                tint: .pink
+                            )
+                        }
+                        .buttonStyle(.plain)
 
-                        SummaryCard(
-                            title: "体重记录总数",
-                            value: "\(weights.count)",
-                            subtitle: weights.last.map { "最早 \(WeightDisplay.jinText(fromKG: $0.weightKG))" } ?? "还没有记录",
-                            tint: .orange
-                        )
+                        NavigationLink {
+                            WeightStatsView(records: Array(weights))
+                        } label: {
+                            SummaryCard(
+                                title: "体重记录总数",
+                                value: "\(weights.count)",
+                                subtitle: weights.last.map { "最早 \(WeightDisplay.jinText(fromKG: $0.weightKG))" } ?? "还没有记录",
+                                tint: .orange
+                            )
+                        }
+                        .buttonStyle(.plain)
 
                         SummaryCard(
                             title: "药物记录总数",
