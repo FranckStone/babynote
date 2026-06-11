@@ -8,6 +8,7 @@ struct StatsView: View {
     @FetchRequest(sortDescriptors: [SortDescriptor(\MedicationRecord.recordedAt, order: .reverse)]) private var medications: FetchedResults<MedicationRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\FetalMovementRecord.recordedAt, order: .reverse)]) private var fetalMovements: FetchedResults<FetalMovementRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\ExcretionRecord.recordedAt, order: .reverse)]) private var excretions: FetchedResults<ExcretionRecord>
 
     private var averageFeedingIntervalHours: Double? {
         guard feedings.count >= 2 else { return nil }
@@ -37,7 +38,7 @@ struct StatsView: View {
                 VStack(spacing: 12) {
                     LazyVGrid(columns: statsColumns, spacing: 12) {
                         NavigationLink {
-                            FeedingStatsView(records: Array(feedings))
+                            FeedingStatsView()
                         } label: {
                             SummaryCard(
                                 title: "喂奶记录总数",
@@ -49,7 +50,7 @@ struct StatsView: View {
                         .buttonStyle(.plain)
 
                         NavigationLink {
-                            WeightStatsView(records: Array(weights))
+                            WeightStatsView()
                         } label: {
                             SummaryCard(
                                 title: "体重记录总数",
@@ -74,8 +75,15 @@ struct StatsView: View {
                             tint: .mint
                         )
 
+                        SummaryCard(
+                            title: "屎尿记录总数",
+                            value: "\(excretions.count)",
+                            subtitle: excretions.first.map { "\($0.type.displayName) \(DateDisplay.time($0.recordedAt))" } ?? "还没有记录",
+                            tint: .brown
+                        )
+
                         NavigationLink {
-                            BloodGlucoseStatsView(records: Array(bloodGlucoses))
+                            BloodGlucoseStatsView()
                         } label: {
                             SummaryCard(
                                 title: "血糖记录总数",

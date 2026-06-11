@@ -1,4 +1,5 @@
 import Charts
+import CoreData
 import SwiftUI
 
 private struct DailyWeightPoint: Identifiable {
@@ -9,12 +10,16 @@ private struct DailyWeightPoint: Identifiable {
 }
 
 struct WeightStatsView: View {
-    let records: [WeightRecord]
+    @FetchRequest(sortDescriptors: [SortDescriptor(\WeightRecord.recordedAt, order: .reverse)]) private var fetchedRecords: FetchedResults<WeightRecord>
     @State private var selectedDays: Set<Date> = []
 
     private let maxSelectedDays = 14
 
     private var calendar: Calendar { .current }
+
+    private var records: [WeightRecord] {
+        Array(fetchedRecords)
+    }
 
     private var availableDaysSorted: [Date] {
         let unique = Set(records.map { calendar.startOfDay(for: $0.recordedAt) })
@@ -124,9 +129,10 @@ struct WeightStatsView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("体重统计")
         .onAppear {
-            if selectedDays.isEmpty {
-                selectedDays = Set(availableDaysSorted.suffix(maxSelectedDays))
-            }
+            syncSelectedDaysWithAvailableRecords()
+        }
+        .onChange(of: availableDaysSorted) { _ in
+            syncSelectedDaysWithAvailableRecords()
         }
     }
 
@@ -172,6 +178,22 @@ struct WeightStatsView: View {
 
         guard selectedDays.count < maxSelectedDays else { return }
         selectedDays.insert(day)
+    }
+
+    private func syncSelectedDaysWithAvailableRecords() {
+        guard !availableDaysSorted.isEmpty else {
+            selectedDays = []
+            return
+        }
+
+        var updatedSelection = selectedDays.intersection(Set(availableDaysSorted))
+        if updatedSelection.isEmpty {
+            updatedSelection = Set(availableDaysSorted.suffix(maxSelectedDays))
+        } else if updatedSelection.count > maxSelectedDays {
+            updatedSelection = Set(updatedSelection.sorted(by: <).suffix(maxSelectedDays))
+        }
+
+        selectedDays = updatedSelection
     }
 
     private func shortDate(_ day: Date) -> String {

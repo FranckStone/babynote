@@ -9,9 +9,10 @@ enum SampleDataSeeder {
         medications: [MedicationRecord],
         checkups: [CheckupRecord],
         fetalMovements: [FetalMovementRecord],
-        bloodGlucoses: [BloodGlucoseRecord]
+        bloodGlucoses: [BloodGlucoseRecord],
+        excretions: [ExcretionRecord]
     ) {
-        guard feedings.isEmpty, weights.isEmpty, medications.isEmpty, checkups.isEmpty, fetalMovements.isEmpty, bloodGlucoses.isEmpty else {
+        guard feedings.isEmpty, weights.isEmpty, medications.isEmpty, checkups.isEmpty, fetalMovements.isEmpty, bloodGlucoses.isEmpty, excretions.isEmpty else {
             return
         }
 
@@ -21,8 +22,8 @@ enum SampleDataSeeder {
             context: context,
             startedAt: Calendar.current.date(byAdding: .hour, value: -2, to: now) ?? now,
             endedAt: Calendar.current.date(byAdding: .minute, value: -95, to: now),
-            feedingType: .leftBreast,
-            amountML: nil,
+            feedingType: .formula,
+            amountML: 60,
             note: "夜里比较顺利"
         )
 
@@ -64,6 +65,13 @@ enum SampleDataSeeder {
             moment: .beforeSleep,
             valueMMOL: 5.6,
             note: ""
+        )
+
+        _ = ExcretionRecord(
+            context: context,
+            recordedAt: Calendar.current.date(byAdding: .minute, value: -30, to: now) ?? now,
+            type: .pee,
+            note: "正常"
         )
 
         try? context.save()

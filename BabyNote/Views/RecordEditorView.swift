@@ -60,6 +60,8 @@ struct RecordEditorView: View {
             FetalMovementRecordEditor(record: record)
         case .bloodGlucose(let record):
             BloodGlucoseRecordEditor(record: record)
+        case .excretion(let record):
+            ExcretionRecordEditor(record: record)
         }
     }
 
@@ -81,6 +83,8 @@ struct RecordEditorView: View {
         case .fetalMovement(let record):
             managedObjectContext.delete(record)
         case .bloodGlucose(let record):
+            managedObjectContext.delete(record)
+        case .excretion(let record):
             managedObjectContext.delete(record)
         }
 
@@ -106,7 +110,15 @@ private struct FeedingRecordEditor: View {
                         Text(type.displayName).tag(type)
                     }
                 }
-                TextField("奶量（ml，可选）", text: amountTextBinding)
+                .pickerStyle(.segmented)
+                if record.feedingType == .mixed {
+                    DatePicker(
+                        "奶粉开始时间",
+                        selection: formulaStartedAtBinding,
+                        in: record.startedAt...(record.endedAt ?? Date.distantFuture)
+                    )
+                }
+                TextField("奶粉量（ml）", text: amountTextBinding)
                     .keyboardType(.decimalPad)
                 TextField("备注", text: noteBinding, axis: .vertical)
                     .lineLimit(2...4)
@@ -131,7 +143,24 @@ private struct FeedingRecordEditor: View {
     private var feedingTypeBinding: Binding<FeedingType> {
         Binding(
             get: { record.feedingType },
-            set: { record.feedingType = $0 }
+            set: { newValue in
+                record.feedingType = newValue
+                if newValue == .mixed, record.formulaStartedAt == nil {
+                    let fallbackEnd = record.endedAt ?? record.startedAt.addingTimeInterval(15 * 60)
+                    record.formulaStartedAt = record.startedAt.addingTimeInterval(max(fallbackEnd.timeIntervalSince(record.startedAt) / 2, 0))
+                } else if newValue == .formula {
+                    record.formulaStartedAt = nil
+                }
+            }
+        )
+    }
+
+    private var formulaStartedAtBinding: Binding<Date> {
+        Binding(
+            get: {
+                record.formulaStartedAt ?? record.startedAt
+            },
+            set: { record.formulaStartedAt = $0 }
         )
     }
 
@@ -664,5 +693,46 @@ private struct BloodGlucoseRecordEditor: View {
         valueText = String(format: "%.1f", updated)
         record.valueMMOL = updated
         syncAdjustmentFromText()
+    }
+}
+
+private struct ExcretionRecordEditor: View {
+    @ObservedObject var record: ExcretionRecord
+
+    var body: some View {
+        Form {
+            Section("屎尿信息") {
+                DatePicker("记录时间", selection: recordedAtBinding)
+                Picker("类型", selection: typeBinding) {
+                    ForEach(ExcretionType.allCases) { type in
+                        Text(type.displayName).tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+                TextField("备注", text: noteBinding, axis: .vertical)
+                    .lineLimit(2...4)
+            }
+        }
+    }
+
+    private var recordedAtBinding: Binding<Date> {
+        Binding(
+            get: { record.recordedAt },
+            set: { record.recordedAt = $0 }
+        )
+    }
+
+    private var typeBinding: Binding<ExcretionType> {
+        Binding(
+            get: { record.type },
+            set: { record.type = $0 }
+        )
+    }
+
+    private var noteBinding: Binding<String> {
+        Binding(
+            get: { record.note },
+            set: { record.note = $0 }
+        )
     }
 }

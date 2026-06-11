@@ -12,6 +12,25 @@ enum BloodGlucoseMoment: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var chartOrder: Int {
+        switch self {
+        case .beforeBreakfast: 0
+        case .afterBreakfast: 1
+        case .beforeLunch: 2
+        case .afterLunch: 3
+        case .beforeDinner: 4
+        case .afterDinner: 5
+        case .beforeSleep: 6
+        }
+    }
+
+    var chartPositionKey: String {
+        // Charts in grouped BarMark can render larger category keys first within each day.
+        // Use reverse rank to keep the visual order as breakfast -> ... -> sleep.
+        let reverseRank = BloodGlucoseMoment.allCases.count - chartOrder
+        return String(format: "%02d_%@", reverseRank, displayName)
+    }
+
     var displayName: String {
         switch self {
         case .beforeBreakfast: "早餐前"

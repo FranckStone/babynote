@@ -31,6 +31,8 @@ final class PersistenceController {
 
         storeDescription?.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         storeDescription?.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        storeDescription?.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+        storeDescription?.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
 
         container.loadPersistentStores { _, error in
             if let error {
@@ -52,7 +54,8 @@ final class PersistenceController {
         feeding.properties = [
             attribute(name: "startedAt", type: .dateAttributeType),
             attribute(name: "endedAt", type: .dateAttributeType, isOptional: true),
-            attribute(name: "feedingTypeRawValue", type: .stringAttributeType, defaultValue: FeedingType.leftBreast.rawValue),
+            attribute(name: "formulaStartedAt", type: .dateAttributeType, isOptional: true),
+            attribute(name: "feedingTypeRawValue", type: .stringAttributeType, defaultValue: FeedingType.formula.rawValue),
             attribute(name: "amountML", type: .doubleAttributeType, isOptional: true),
             attribute(name: "note", type: .stringAttributeType, defaultValue: "")
         ]
@@ -107,7 +110,16 @@ final class PersistenceController {
             attribute(name: "note", type: .stringAttributeType, defaultValue: "")
         ]
 
-        model.entities = [feeding, weight, medication, checkup, fetalMovement, bloodGlucose]
+        let excretion = NSEntityDescription()
+        excretion.name = "ExcretionRecord"
+        excretion.managedObjectClassName = NSStringFromClass(ExcretionRecord.self)
+        excretion.properties = [
+            attribute(name: "recordedAt", type: .dateAttributeType),
+            attribute(name: "typeRawValue", type: .stringAttributeType, defaultValue: ExcretionType.poop.rawValue),
+            attribute(name: "note", type: .stringAttributeType, defaultValue: "")
+        ]
+
+        model.entities = [feeding, weight, medication, checkup, fetalMovement, bloodGlucose, excretion]
         return model
     }
 

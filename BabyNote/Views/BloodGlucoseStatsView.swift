@@ -1,10 +1,12 @@
 import Charts
+import CoreData
 import SwiftUI
 
 private struct DailyMomentPoint: Identifiable {
     let day: Date
     let moment: BloodGlucoseMoment
     let value: Double
+    let recordedAt: Date?
 
     var id: String {
         "\(day.timeIntervalSince1970)-\(moment.rawValue)"
@@ -12,13 +14,14 @@ private struct DailyMomentPoint: Identifiable {
 }
 
 struct BloodGlucoseStatsView: View {
-    let records: [BloodGlucoseRecord]
-    @State private var selectedDays: Set<Date> = []
+    @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var fetchedRecords: FetchedResults<BloodGlucoseRecord>
     @State private var isComparisonEnabled = false
 
-    private let maxSelectedDays = 5
-
     private var calendar: Calendar { .current }
+
+    private var records: [BloodGlucoseRecord] {
+        Array(fetchedRecords)
+    }
 
     private var sortedRecords: [BloodGlucoseRecord] {
         records.sorted { $0.recordedAt < $1.recordedAt }
@@ -29,25 +32,23 @@ struct BloodGlucoseStatsView: View {
         return unique.sorted(by: <)
     }
 
-    private var selectedDaysAsc: [Date] {
-        availableDaysSorted
-            .filter { selectedDays.contains($0) }
-            .sorted(by: <)
+    private var displayedDaysDesc: [Date] {
+        availableDaysSorted.sorted(by: >)
     }
 
-    private var selectedRecords: [BloodGlucoseRecord] {
-        sortedRecords.filter { selectedDays.contains(calendar.startOfDay(for: $0.recordedAt)) }
+    private var displayedRecords: [BloodGlucoseRecord] {
+        sortedRecords
     }
 
     private var averageValue: Double? {
-        guard !selectedRecords.isEmpty else { return nil }
-        let sum = selectedRecords.reduce(0.0) { $0 + $1.valueMMOL }
-        return sum / Double(selectedRecords.count)
+        guard !displayedRecords.isEmpty else { return nil }
+        let sum = displayedRecords.reduce(0.0) { $0 + $1.valueMMOL }
+        return sum / Double(displayedRecords.count)
     }
 
     private var lookup: [String: BloodGlucoseRecord] {
         var map: [String: BloodGlucoseRecord] = [:]
-        for record in selectedRecords.sorted(by: { $0.recordedAt > $1.recordedAt }) {
+        for record in displayedRecords.sorted(by: { $0.recordedAt > $1.recordedAt }) {
             let key = lookupKey(day: calendar.startOfDay(for: record.recordedAt), moment: record.moment)
             if map[key] == nil {
                 map[key] = record
@@ -58,12 +59,18 @@ struct BloodGlucoseStatsView: View {
 
     private var chartPoints: [DailyMomentPoint] {
         var points: [DailyMomentPoint] = []
-        for day in selectedDaysAsc {
+        for day in displayedDaysDesc {
             for moment in BloodGlucoseMoment.allCases {
                 let key = lookupKey(day: day, moment: moment)
-                if let record = lookup[key] {
-                    points.append(DailyMomentPoint(day: day, moment: moment, value: record.valueMMOL))
-                }
+                let record = lookup[key]
+                points.append(
+                    DailyMomentPoint(
+                        day: day,
+                        moment: moment,
+                        value: record?.valueMMOL ?? 0,
+                        recordedAt: record?.recordedAt
+                    )
+                )
             }
         }
         return points
@@ -85,54 +92,22 @@ struct BloodGlucoseStatsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                daySelector
-
+            VStack(alignment: .leading, spacing: 12) {
                 if chartPoints.isEmpty {
                     VStack(spacing: 8) {
                         Image(systemName: "waveform.path.ecg")
                             .font(.title2)
                             .foregroundStyle(.secondary)
-                        Text("请选择日期查看血糖柱状图")
+                        Text("暂无血糖数据")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 36)
                 } else {
-                    Chart {
-                        ForEach(chartPoints) { point in
-                            let exceedAmount = chartExceedAmount(for: point)
-                            BarMark(
-                                x: .value("日期", point.day, unit: .day),
-                                y: .value("血糖", point.value)
-                            )
-                            .position(by: .value("时段", point.moment.displayName))
-                            .foregroundStyle(exceedAmount == nil ? Color.accentColor : Color.red)
-                            .annotation(position: .top, alignment: .center) {
-                                VStack(spacing: 1) {
-                                    Text(point.moment.displayName)
-                                        .font(.caption2)
-                                    Text(String(format: "%.1f", point.value))
-                                        .font(.caption2.weight(.semibold))
-                                    if let exceedAmount {
-                                        Text("超出 \(String(format: "%.1f", exceedAmount))")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(.red)
-                                    }
-                                }
-                                .foregroundStyle(.secondary)
-                            }
-                        }
-
-                    }
-                    .frame(height: 320)
-                    .chartYAxisLabel("mmol/L")
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day)) { value in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel(format: .dateTime.month().day())
+                    VStack(spacing: 10) {
+                        ForEach(displayedDaysDesc, id: \.self) { day in
+                            dailyCard(for: day)
                         }
                     }
                 }
@@ -140,9 +115,9 @@ struct BloodGlucoseStatsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("统计摘要")
                         .font(.headline)
-                    Text("选中天数：\(selectedDaysAsc.count) / \(maxSelectedDays)")
+                    Text("天数：\(displayedDaysDesc.count)")
                         .font(.subheadline)
-                    Text("记录总数：\(selectedRecords.count)")
+                    Text("记录总数：\(displayedRecords.count)")
                         .font(.subheadline)
                     if let averageValue {
                         Text("平均血糖：\(String(format: "%.2f", averageValue)) mmol/L")
@@ -188,55 +163,6 @@ struct BloodGlucoseStatsView: View {
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("血糖统计")
-        .onAppear {
-            if selectedDays.isEmpty {
-                selectedDays = Set(availableDaysSorted.suffix(maxSelectedDays))
-            }
-        }
-    }
-
-    private var daySelector: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("选择日期（最多 5 天）")
-                .font(.headline)
-
-            if availableDaysSorted.isEmpty {
-                Text("暂无可选日期")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(availableDaysSorted, id: \.self) { day in
-                            let isSelected = selectedDays.contains(day)
-
-                            Button {
-                                toggleDaySelection(day)
-                            } label: {
-                                Text(shortDate(day))
-                                    .font(.subheadline.weight(.medium))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
-                                    .foregroundStyle(isSelected ? .white : .primary)
-                                    .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func toggleDaySelection(_ day: Date) {
-        if selectedDays.contains(day) {
-            selectedDays.remove(day)
-            return
-        }
-
-        guard selectedDays.count < maxSelectedDays else { return }
-        selectedDays.insert(day)
     }
 
     private func lookupKey(day: Date, moment: BloodGlucoseMoment) -> String {
@@ -249,6 +175,15 @@ struct BloodGlucoseStatsView: View {
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "M月d日"
         return formatter.string(from: day)
+    }
+
+    private func shortTime(_ date: Date?) -> String {
+        guard let date else { return "--:--" }
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 
     private func diagnosisUpperLimit(for moment: BloodGlucoseMoment) -> Double? {
@@ -275,6 +210,90 @@ struct BloodGlucoseStatsView: View {
         guard isComparisonEnabled, let upperLimit = dailyControlUpperLimit(for: point.moment) else { return nil }
         let exceedAmount = point.value - upperLimit
         return exceedAmount > 0 ? exceedAmount : nil
+    }
+
+    private func points(for day: Date) -> [DailyMomentPoint] {
+        chartPoints.filter { calendar.isDate($0.day, inSameDayAs: day) }
+    }
+
+    private func axisTimeLabel(for momentLabel: String, in points: [DailyMomentPoint]) -> String {
+        let point = points.first { $0.moment.displayName == momentLabel }
+        return shortTime(point?.recordedAt)
+    }
+
+    @ViewBuilder
+    private func dailyCard(for day: Date) -> some View {
+        let dayPoints = points(for: day)
+
+        VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { proxy in
+                let contentWidth = proxy.size.width * 0.5
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(shortDate(day))
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text("平均 \(String(format: "%.1f", dayAverage(for: dayPoints)))")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: contentWidth, alignment: .leading)
+
+                    Chart(dayPoints) { point in
+                        let exceedAmount = chartExceedAmount(for: point)
+                        BarMark(
+                            x: .value("时段", point.moment.displayName),
+                            y: .value("血糖", point.value),
+                            width: .fixed(20)
+                        )
+                        .foregroundStyle(exceedAmount == nil ? Color.accentColor : Color.red)
+                        .annotation(position: .top, alignment: .center) {
+                            Text(String(format: "%.1f", point.value))
+                                .font(.caption2)
+                                .foregroundStyle(exceedAmount == nil ? Color.secondary : Color.red)
+                        }
+                    }
+                    .frame(width: contentWidth, height: 136)
+                    .chartYAxisLabel("mmol/L")
+                    .chartXScale(domain: BloodGlucoseMoment.allCases.map(\.displayName))
+                    .chartXAxis {
+                        AxisMarks(values: BloodGlucoseMoment.allCases.map(\.displayName)) { value in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel(centered: true) {
+                                if let label = value.as(String.self) {
+                                    VStack(spacing: 2) {
+                                        Text(label)
+                                            .font(.caption2)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                        Text(axisTimeLabel(for: label, in: dayPoints))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                    .multilineTextAlignment(.center)
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .frame(height: 184)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func dayAverage(for points: [DailyMomentPoint]) -> Double {
+        guard !points.isEmpty else { return 0 }
+        let total = points.reduce(0.0) { $0 + $1.value }
+        return total / Double(points.count)
     }
 
     @ViewBuilder

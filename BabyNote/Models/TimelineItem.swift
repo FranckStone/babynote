@@ -8,6 +8,7 @@ enum TimelineRecord {
     case checkup(CheckupRecord)
     case fetalMovement(FetalMovementRecord)
     case bloodGlucose(BloodGlucoseRecord)
+    case excretion(ExcretionRecord)
 }
 
 struct TimelineItem: Identifiable {
@@ -25,14 +26,16 @@ struct TimelineItem: Identifiable {
         medications: [MedicationRecord],
         checkups: [CheckupRecord],
         fetalMovements: [FetalMovementRecord],
-        bloodGlucoses: [BloodGlucoseRecord]
+        bloodGlucoses: [BloodGlucoseRecord],
+        excretions: [ExcretionRecord]
     ) -> [TimelineItem] {
         (feedings.map(makeItem) +
          weights.map(makeItem) +
          medications.map(makeItem) +
          checkups.map(makeItem) +
          fetalMovements.map(makeItem) +
-         bloodGlucoses.map(makeItem))
+         bloodGlucoses.map(makeItem) +
+         excretions.map(makeItem))
             .sorted { $0.recordedAt > $1.recordedAt }
     }
 
@@ -43,7 +46,8 @@ struct TimelineItem: Identifiable {
         medications: [MedicationRecord],
         checkups: [CheckupRecord],
         fetalMovements: [FetalMovementRecord],
-        bloodGlucoses: [BloodGlucoseRecord]
+        bloodGlucoses: [BloodGlucoseRecord],
+        excretions: [ExcretionRecord]
     ) -> [TimelineItem] {
         guard limit > 0 else { return [] }
 
@@ -53,7 +57,8 @@ struct TimelineItem: Identifiable {
             medications.map(TimelineRecord.medication),
             checkups.map(TimelineRecord.checkup),
             fetalMovements.map(TimelineRecord.fetalMovement),
-            bloodGlucoses.map(TimelineRecord.bloodGlucose)
+            bloodGlucoses.map(TimelineRecord.bloodGlucose),
+            excretions.map(TimelineRecord.excretion)
         ]
 
         var indices = Array(repeating: 0, count: groups.count)
@@ -156,6 +161,18 @@ struct TimelineItem: Identifiable {
         )
     }
 
+    private static func makeItem(_ record: ExcretionRecord) -> TimelineItem {
+        TimelineItem(
+            id: record.objectID,
+            recordedAt: record.recordedAt,
+            type: .excretion,
+            title: record.type.displayName,
+            detail: "屎尿记录",
+            note: record.note,
+            record: .excretion(record)
+        )
+    }
+
     private static func makeItem(from record: TimelineRecord) -> TimelineItem {
         switch record {
         case .feeding(let record):
@@ -169,6 +186,8 @@ struct TimelineItem: Identifiable {
         case .fetalMovement(let record):
             makeItem(record)
         case .bloodGlucose(let record):
+            makeItem(record)
+        case .excretion(let record):
             makeItem(record)
         }
     }
@@ -187,6 +206,8 @@ struct TimelineItem: Identifiable {
             record.recordedAt
         case .bloodGlucose(let record):
             record.recordedAt
+        case .excretion(let record):
+            record.recordedAt
         }
     }
 
@@ -195,7 +216,14 @@ struct TimelineItem: Identifiable {
         if let amountML = record.amountMLValue {
             parts.append("\(Int(amountML)) ml")
         }
-        if let durationMinutes = record.durationMinutes {
+        if record.feedingType == .mixed {
+            if let breastDurationMinutes = record.breastDurationMinutes {
+                parts.append("母乳 \(breastDurationMinutes) 分钟")
+            }
+            if let formulaDurationMinutes = record.formulaDurationMinutes {
+                parts.append("奶粉 \(formulaDurationMinutes) 分钟")
+            }
+        } else if let durationMinutes = record.durationMinutes {
             parts.append("\(durationMinutes) 分钟")
         }
         return parts.isEmpty ? "未填写时长或奶量" : parts.joined(separator: " · ")

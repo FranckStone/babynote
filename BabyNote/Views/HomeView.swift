@@ -18,6 +18,7 @@ struct HomeView: View {
     @FetchRequest(sortDescriptors: [SortDescriptor(\CheckupRecord.recordedAt, order: .reverse)]) private var checkups: FetchedResults<CheckupRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\FetalMovementRecord.recordedAt, order: .reverse)]) private var fetalMovements: FetchedResults<FetalMovementRecord>
     @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
+    @FetchRequest(sortDescriptors: [SortDescriptor(\ExcretionRecord.recordedAt, order: .reverse)]) private var excretions: FetchedResults<ExcretionRecord>
     @State private var isShowingQuickRecordOptions = false
     @State private var quickLogDestination: QuickLogDestination?
 
@@ -29,7 +30,8 @@ struct HomeView: View {
             medications: Array(medications),
             checkups: Array(checkups),
             fetalMovements: Array(fetalMovements),
-            bloodGlucoses: Array(bloodGlucoses)
+            bloodGlucoses: Array(bloodGlucoses),
+            excretions: Array(excretions)
         )
     }
 
@@ -47,6 +49,10 @@ struct HomeView: View {
 
     private var todayBloodGlucoseCount: Int {
         bloodGlucoses.filter { Calendar.current.isDateInToday($0.recordedAt) }.count
+    }
+
+    private var todayExcretionCount: Int {
+        excretions.filter { Calendar.current.isDateInToday($0.recordedAt) }.count
     }
 
     private var summaryColumns: [GridItem] {
@@ -161,6 +167,13 @@ struct HomeView: View {
                 subtitle: bloodGlucoses.first.map { "\($0.moment.displayName) \(String(format: "%.1f", $0.valueMMOL))" } ?? "还没有记录",
                 tint: .red
             )
+
+            SummaryCard(
+                title: "今日屎尿",
+                value: "\(todayExcretionCount) 次",
+                subtitle: excretions.first.map { "\($0.type.displayName) \(DateDisplay.time($0.recordedAt))" } ?? "还没有记录",
+                tint: .brown
+            )
         }
     }
 
@@ -170,7 +183,7 @@ struct HomeView: View {
                 .font(.title2.bold())
                 .foregroundStyle(.primary)
 
-            Text("喂奶、体重、吃药、检查结果和胎动都能在几秒内记下来，后面再补充细节。")
+            Text("喂奶、屎尿、体重、吃药、检查结果和胎动都能在几秒内记下来，后面再补充细节。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -337,6 +350,8 @@ struct HomeView: View {
             return fetalMovements.first.map { "最近 \(DateDisplay.time($0.recordedAt))" } ?? "记录胎动次数和时长"
         case .bloodGlucose:
             return bloodGlucoses.first.map { "最近 \($0.moment.displayName) \(String(format: "%.1f", $0.valueMMOL)) mmol/L" } ?? "记录餐前餐后和睡前血糖"
+        case .excretion:
+            return excretions.first.map { "最近 \($0.type.displayName) \(DateDisplay.time($0.recordedAt))" } ?? "记录拉屎和撒尿"
         }
     }
 
@@ -355,6 +370,8 @@ struct HomeView: View {
             colors = [Color.mint.opacity(0.22), Color.teal.opacity(0.16)]
         case .bloodGlucose:
             colors = [Color.red.opacity(0.2), Color.orange.opacity(0.15)]
+        case .excretion:
+            colors = [Color.brown.opacity(0.2), Color.yellow.opacity(0.16)]
         }
 
         return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)

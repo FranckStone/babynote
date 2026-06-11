@@ -33,11 +33,16 @@
 		A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* BloodGlucoseStatsView.swift */; };
 		A10000000000000000000019 /* FeedingStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* FeedingStatsView.swift */; };
 		A1000000000000000000001A /* WeightStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* WeightStatsView.swift */; };
-		A1000000000000000000001B /* RecipeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* RecipeListView.swift */; };
+		A1000000000000000000001C /* InactivityDimDelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* InactivityDimDelay.swift */; };
+		A1000000000000000000001D /* InactivityBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* InactivityBrightnessController.swift */; };
+		A1000000000000000000001E /* UserInteractionMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* UserInteractionMonitorView.swift */; };
+		A1000000000000000000001F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* SettingsView.swift */; };
+		A10000000000000000000020 /* FeedingReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* FeedingReminderScheduler.swift */; };
+		A10000000000000000000023 /* ExcretionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* ExcretionRecord.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A20000000000000000000000 /* BabyNote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BabyNote.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000000 /* 宝宝笔记.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "宝宝笔记.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000001 /* BabyNoteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BabyNoteApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* FeedingRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingRecord.swift; sourceTree = "<group>"; };
@@ -66,7 +71,12 @@
 		A2000000000000000000001A /* BabyNote.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BabyNote.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000001B /* FeedingStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingStatsView.swift; sourceTree = "<group>"; };
 		A2000000000000000000001C /* WeightStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightStatsView.swift; sourceTree = "<group>"; };
-		A2000000000000000000001D /* RecipeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeListView.swift; sourceTree = "<group>"; };
+		A2000000000000000000001E /* InactivityDimDelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityDimDelay.swift; sourceTree = "<group>"; };
+		A2000000000000000000001F /* InactivityBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityBrightnessController.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* UserInteractionMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserInteractionMonitorView.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* FeedingReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingReminderScheduler.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* ExcretionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcretionRecord.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,7 +114,7 @@
 		A40000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A20000000000000000000000 /* BabyNote.app */,
+				A20000000000000000000000 /* 宝宝笔记.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -123,6 +133,8 @@
 				A20000000000000000000015 /* DateDisplay.swift */,
 				A20000000000000000000016 /* WeightDisplay.swift */,
 				A20000000000000000000018 /* BloodGlucoseRecord.swift */,
+				A20000000000000000000023 /* ExcretionRecord.swift */,
+				A2000000000000000000001E /* InactivityDimDelay.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -138,7 +150,7 @@
 				A20000000000000000000019 /* BloodGlucoseStatsView.swift */,
 				A2000000000000000000001B /* FeedingStatsView.swift */,
 				A2000000000000000000001C /* WeightStatsView.swift */,
-				A2000000000000000000001D /* RecipeListView.swift */,
+				A20000000000000000000021 /* SettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -147,7 +159,10 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000017 /* AdaptiveWidthModifier.swift */,
+				A20000000000000000000022 /* FeedingReminderScheduler.swift */,
+				A2000000000000000000001F /* InactivityBrightnessController.swift */,
 				A2000000000000000000000E /* SummaryCard.swift */,
+				A20000000000000000000020 /* UserInteractionMonitorView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -181,7 +196,7 @@
 			);
 			name = BabyNote;
 			productName = BabyNote;
-			productReference = A20000000000000000000000 /* BabyNote.app */;
+			productReference = A20000000000000000000000 /* 宝宝笔记.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -192,7 +207,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2630;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					A50000000000000000000001 = {
 						CreatedOnToolsVersion = 26.3;
@@ -259,7 +274,12 @@
 				A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */,
 				A10000000000000000000019 /* FeedingStatsView.swift in Sources */,
 				A1000000000000000000001A /* WeightStatsView.swift in Sources */,
-				A1000000000000000000001B /* RecipeListView.swift in Sources */,
+				A1000000000000000000001C /* InactivityDimDelay.swift in Sources */,
+				A1000000000000000000001D /* InactivityBrightnessController.swift in Sources */,
+				A1000000000000000000001E /* UserInteractionMonitorView.swift in Sources */,
+				A1000000000000000000001F /* SettingsView.swift in Sources */,
+				A10000000000000000000020 /* FeedingReminderScheduler.swift in Sources */,
+				A10000000000000000000023 /* ExcretionRecord.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,6 +351,7 @@
 		A70000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
@@ -370,6 +391,7 @@
 		A70000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
