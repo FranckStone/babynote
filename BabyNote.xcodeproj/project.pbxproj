@@ -39,6 +39,7 @@
 		A1000000000000000000001F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* SettingsView.swift */; };
 		A10000000000000000000020 /* FeedingReminderScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* FeedingReminderScheduler.swift */; };
 		A10000000000000000000023 /* ExcretionRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* ExcretionRecord.swift */; };
+		A10000000000000000000024 /* ExcretionStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* ExcretionStatsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,6 +78,7 @@
 		A20000000000000000000021 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000022 /* FeedingReminderScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedingReminderScheduler.swift; sourceTree = "<group>"; };
 		A20000000000000000000023 /* ExcretionRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcretionRecord.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* ExcretionStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcretionStatsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +150,7 @@
 				A2000000000000000000000C /* TimelineView.swift */,
 				A2000000000000000000000D /* StatsView.swift */,
 				A20000000000000000000019 /* BloodGlucoseStatsView.swift */,
+				A20000000000000000000024 /* ExcretionStatsView.swift */,
 				A2000000000000000000001B /* FeedingStatsView.swift */,
 				A2000000000000000000001C /* WeightStatsView.swift */,
 				A20000000000000000000021 /* SettingsView.swift */,
@@ -272,6 +275,7 @@
 				A10000000000000000000016 /* AdaptiveWidthModifier.swift in Sources */,
 				A10000000000000000000017 /* BloodGlucoseRecord.swift in Sources */,
 				A10000000000000000000018 /* BloodGlucoseStatsView.swift in Sources */,
+				A10000000000000000000024 /* ExcretionStatsView.swift in Sources */,
 				A10000000000000000000019 /* FeedingStatsView.swift in Sources */,
 				A1000000000000000000001A /* WeightStatsView.swift in Sources */,
 				A1000000000000000000001C /* InactivityDimDelay.swift in Sources */,

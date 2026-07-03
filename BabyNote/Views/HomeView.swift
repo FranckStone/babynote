@@ -339,7 +339,7 @@ struct HomeView: View {
     private func quickActionSubtitle(for type: RecordType) -> String {
         switch type {
         case .feeding:
-            return feedings.first.map { "最近 \(DateDisplay.time($0.startedAt))" } ?? "记录开始和结束时间"
+            return feedings.first.map { "最近 \(DateDisplay.time($0.startedAt))" } ?? "选择奶量后直接记录"
         case .weight:
             return weights.first.map { "最近 \(WeightDisplay.jinText(fromKG: $0.weightKG))" } ?? "记录孕期体重变化"
         case .medication:

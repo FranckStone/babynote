@@ -75,12 +75,17 @@ struct StatsView: View {
                             tint: .mint
                         )
 
-                        SummaryCard(
-                            title: "屎尿记录总数",
-                            value: "\(excretions.count)",
-                            subtitle: excretions.first.map { "\($0.type.displayName) \(DateDisplay.time($0.recordedAt))" } ?? "还没有记录",
-                            tint: .brown
-                        )
+                        NavigationLink {
+                            ExcretionStatsView()
+                        } label: {
+                            SummaryCard(
+                                title: "屎尿记录总数",
+                                value: "\(excretions.count)",
+                                subtitle: excretions.first.map { "\($0.type.displayName) \(DateDisplay.time($0.recordedAt))" } ?? "还没有记录",
+                                tint: .brown
+                            )
+                        }
+                        .buttonStyle(.plain)
 
                         NavigationLink {
                             BloodGlucoseStatsView()

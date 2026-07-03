@@ -10,63 +10,73 @@ private struct FeedingStatsItem: Identifiable {
     }
 }
 
+private struct FeedingDayGroup: Identifiable {
+    let day: Date
+    let items: [FeedingStatsItem]
+
+    var id: Date { day }
+}
+
+private struct FeedingStatsData {
+    let dailyGroups: [FeedingDayGroup]
+    let totalCount: Int
+    let totalFormulaAmount: Double
+
+    var averagePerDay: Double? {
+        guard !dailyGroups.isEmpty else { return nil }
+        return Double(totalCount) / Double(dailyGroups.count)
+    }
+}
+
 struct FeedingStatsView: View {
-    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .reverse)]) private var fetchedRecords: FetchedResults<FeedingRecord>
-
-    private var calendar: Calendar { .current }
-
-    private var records: [FeedingRecord] {
-        Array(fetchedRecords)
-    }
-
-    private var sortedRecords: [FeedingRecord] {
-        records.sorted { $0.startedAt < $1.startedAt }
-    }
-
-    private var dailyItems: [(day: Date, items: [FeedingStatsItem])] {
-        var items: [FeedingStatsItem] = []
-
-        for index in sortedRecords.indices {
-            let previous = index > sortedRecords.startIndex ? sortedRecords[sortedRecords.index(before: index)] : nil
-            items.append(FeedingStatsItem(record: sortedRecords[index], previousStartedAt: previous?.startedAt))
-        }
-
-        let grouped = Dictionary(grouping: items) { calendar.startOfDay(for: $0.record.startedAt) }
-        return grouped
-            .map { day, items in
-                (day: day, items: items.sorted { $0.record.startedAt < $1.record.startedAt })
-            }
-            .sorted { $0.day > $1.day }
-    }
-
-    private var averagePerDay: Double? {
-        guard !dailyItems.isEmpty else { return nil }
-        return Double(records.count) / Double(dailyItems.count)
-    }
-
-    private var totalFormulaAmount: Double {
-        records.reduce(0) { $0 + ($1.amountMLValue ?? 0) }
-    }
+    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .forward)]) private var fetchedRecords: FetchedResults<FeedingRecord>
 
     var body: some View {
+        let stats = makeStats()
+
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                if dailyItems.isEmpty {
+                if stats.dailyGroups.isEmpty {
                     emptyState
                 } else {
-                    VStack(spacing: 10) {
-                        ForEach(dailyItems, id: \.day) { group in
+                    LazyVStack(spacing: 10) {
+                        ForEach(stats.dailyGroups) { group in
                             dailyCard(day: group.day, items: group.items)
                         }
                     }
                 }
 
-                summaryCard
+                summaryCard(stats)
             }
             .padding(20)
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("喂奶统计")
+    }
+
+    private func makeStats() -> FeedingStatsData {
+        let calendar = Calendar.current
+        var items: [FeedingStatsItem] = []
+        items.reserveCapacity(fetchedRecords.count)
+        var previousStartedAt: Date?
+        var totalFormulaAmount: Double = 0
+
+        for record in fetchedRecords {
+            items.append(FeedingStatsItem(record: record, previousStartedAt: previousStartedAt))
+            previousStartedAt = record.startedAt
+            totalFormulaAmount += record.amountMLValue ?? 0
+        }
+
+        let grouped = Dictionary(grouping: items) { calendar.startOfDay(for: $0.record.startedAt) }
+        let dailyGroups = grouped
+            .map { FeedingDayGroup(day: $0.key, items: $0.value) }
+            .sorted { $0.day > $1.day }
+
+        return FeedingStatsData(
+            dailyGroups: dailyGroups,
+            totalCount: items.count,
+            totalFormulaAmount: totalFormulaAmount
+        )
     }
 
     private var emptyState: some View {
@@ -82,19 +92,19 @@ struct FeedingStatsView: View {
         .padding(.vertical, 36)
     }
 
-    private var summaryCard: some View {
+    private func summaryCard(_ stats: FeedingStatsData) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("统计摘要")
                 .font(.headline)
-            Text("天数：\(dailyItems.count)")
+            Text("天数：\(stats.dailyGroups.count)")
                 .font(.subheadline)
-            Text("喂奶总次数：\(records.count)")
+            Text("喂奶总次数：\(stats.totalCount)")
                 .font(.subheadline)
-            if totalFormulaAmount > 0 {
-                Text("奶粉总量：\(formatAmount(totalFormulaAmount))")
+            if stats.totalFormulaAmount > 0 {
+                Text("奶粉总量：\(formatAmount(stats.totalFormulaAmount))")
                     .font(.subheadline)
             }
-            if let averagePerDay {
+            if let averagePerDay = stats.averagePerDay {
                 Text("日均喂奶：\(String(format: "%.1f", averagePerDay)) 次")
                     .font(.subheadline)
             }
@@ -108,7 +118,7 @@ struct FeedingStatsView: View {
     private func dailyCard(day: Date, items: [FeedingStatsItem]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(shortDate(day))
+                Text(DateDisplay.shortDate(day))
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 Text("\(items.count) 次")
@@ -135,9 +145,9 @@ struct FeedingStatsView: View {
     private func feedingRow(_ item: FeedingStatsItem) -> some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 2) {
-                Text(shortTime(item.record.startedAt))
+                Text(DateDisplay.clockTime(item.record.startedAt))
                     .font(.subheadline.monospacedDigit().weight(.semibold))
-                Text(timePeriod(item.record.startedAt))
+                Text(DateDisplay.dayPeriod(item.record.startedAt))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -176,34 +186,6 @@ struct FeedingStatsView: View {
             }
         }
         .padding(.vertical, 10)
-    }
-
-    private func shortDate(_ day: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日"
-        return formatter.string(from: day)
-    }
-
-    private func shortTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
-
-    private func timePeriod(_ date: Date) -> String {
-        let hour = calendar.component(.hour, from: date)
-        switch hour {
-        case 7..<12:
-            return "上午"
-        case 12..<19:
-            return "下午"
-        default:
-            return "晚上"
-        }
     }
 
     private func feedingAmountText(_ record: FeedingRecord) -> String {

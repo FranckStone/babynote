@@ -1,14 +1,13 @@
 import CoreData
-import Combine
 import SwiftUI
 
 private enum QuickLogTimelineRecord: Identifiable {
-    case feeding(FeedingRecord)
+    case feeding(FeedingRecord, previousStartedAt: Date?)
     case excretion(ExcretionRecord)
 
     var id: NSManagedObjectID {
         switch self {
-        case .feeding(let record):
+        case .feeding(let record, _):
             return record.objectID
         case .excretion(let record):
             return record.objectID
@@ -17,7 +16,7 @@ private enum QuickLogTimelineRecord: Identifiable {
 
     var recordedAt: Date {
         switch self {
-        case .feeding(let record):
+        case .feeding(let record, _):
             return record.startedAt
         case .excretion(let record):
             return record.recordedAt
@@ -30,6 +29,13 @@ private struct QuickLogTimelineDayGroup: Identifiable {
     let records: [QuickLogTimelineRecord]
 
     var id: Date { day }
+}
+
+private struct QuickPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.86 : 1)
+    }
 }
 
 private enum QuickLogTimelineFilter: String, CaseIterable, Identifiable {
@@ -59,29 +65,19 @@ struct QuickLogView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var managedObjectContext
-    @EnvironmentObject private var feedingAlarmController: FeedingAlarmController
-    @FetchRequest(sortDescriptors: [SortDescriptor(\FeedingRecord.startedAt, order: .reverse)]) private var feedings: FetchedResults<FeedingRecord>
-    @FetchRequest(sortDescriptors: [SortDescriptor(\WeightRecord.recordedAt, order: .reverse)]) private var weights: FetchedResults<WeightRecord>
-    @FetchRequest(sortDescriptors: [SortDescriptor(\MedicationRecord.recordedAt, order: .reverse)]) private var medications: FetchedResults<MedicationRecord>
-    @FetchRequest(sortDescriptors: [SortDescriptor(\BloodGlucoseRecord.recordedAt, order: .reverse)]) private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
-    @FetchRequest(sortDescriptors: [SortDescriptor(\ExcretionRecord.recordedAt, order: .reverse)]) private var excretions: FetchedResults<ExcretionRecord>
-    @AppStorage("feedingOverdueAlarmEnabled") private var feedingOverdueAlarmEnabled = false
-    @AppStorage("feedingOverdueDelayMinutes") private var feedingOverdueDelayMinutes = 180
+    @FetchRequest private var feedings: FetchedResults<FeedingRecord>
+    @FetchRequest private var weights: FetchedResults<WeightRecord>
+    @FetchRequest private var medications: FetchedResults<MedicationRecord>
+    @FetchRequest private var bloodGlucoses: FetchedResults<BloodGlucoseRecord>
+    @FetchRequest private var excretions: FetchedResults<ExcretionRecord>
 
     @State private var recordType: RecordType = .feeding
 
     @State private var feedingStartedAt = Date()
-    @State private var feedingFormulaStartedAt = Date().addingTimeInterval(10 * 60)
     @State private var feedingEndedAt = Date().addingTimeInterval(15 * 60)
-    @State private var feedingType: FeedingType = .formula
     @State private var feedingAmount = ""
     @State private var feedingNote = ""
     @State private var didApplySuggestedFeedingAmount = false
-    @State private var didApplySuggestedFeedingDuration = false
-    @State private var feedingDurationAdjustment: Double = 0
-    @State private var activeFeedingStartedAt: Date?
-    @State private var activeFormulaStartedAt: Date?
-    @State private var activeFeedingNow = Date()
 
     @State private var weightRecordedAt = Date()
     @State private var weightKG = ""
@@ -120,16 +116,51 @@ struct QuickLogView: View {
     @State private var excretionType: ExcretionType = .poop
     @State private var excretionNote = ""
     @State private var quickLogTimelineFilter: QuickLogTimelineFilter = .all
+    @State private var quickLogTimelineDayOffset = 0
+    @State private var quickLogSaveVersion = 0
+    @State private var pendingFeedingRecordAmounts: [NSManagedObjectID: Int] = [:]
+    @State private var pendingFeedingRecordAmountSaveVersions: [NSManagedObjectID: Int] = [:]
 
     private let showsTypePicker: Bool
     private let isFeedingOnlyMode: Bool
-    private let feedingSessionTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let feedingAmountShortcuts = [30, 60, 90]
+    private let feedingAmountShortcuts = [30, 60, 90, 120, 150, 180]
+    private let quickLogTimelineDayOffsets = Array(0..<5)
 
     init(initialRecordType: RecordType = .feeding, showsTypePicker: Bool = true) {
         _recordType = State(initialValue: initialRecordType)
         self.showsTypePicker = showsTypePicker
         self.isFeedingOnlyMode = initialRecordType == .feeding && showsTypePicker
+
+        _feedings = FetchRequest(fetchRequest: Self.batchedFetchRequest(
+            FeedingRecord.fetchRequest(),
+            sortedBy: NSSortDescriptor(keyPath: \FeedingRecord.startedAt, ascending: false)
+        ))
+        _weights = FetchRequest(fetchRequest: Self.batchedFetchRequest(
+            WeightRecord.fetchRequest(),
+            sortedBy: NSSortDescriptor(keyPath: \WeightRecord.recordedAt, ascending: false)
+        ))
+        _medications = FetchRequest(fetchRequest: Self.batchedFetchRequest(
+            MedicationRecord.fetchRequest(),
+            sortedBy: NSSortDescriptor(keyPath: \MedicationRecord.recordedAt, ascending: false)
+        ))
+        _bloodGlucoses = FetchRequest(fetchRequest: Self.batchedFetchRequest(
+            BloodGlucoseRecord.fetchRequest(),
+            sortedBy: NSSortDescriptor(keyPath: \BloodGlucoseRecord.recordedAt, ascending: false)
+        ))
+        _excretions = FetchRequest(fetchRequest: Self.batchedFetchRequest(
+            ExcretionRecord.fetchRequest(),
+            sortedBy: NSSortDescriptor(keyPath: \ExcretionRecord.recordedAt, ascending: false)
+        ))
+    }
+
+    // 快速记录页只展示最近数据，分批加载避免一次性把全表拉进内存。
+    private static func batchedFetchRequest<T: NSManagedObject>(
+        _ request: NSFetchRequest<T>,
+        sortedBy sortDescriptor: NSSortDescriptor
+    ) -> NSFetchRequest<T> {
+        request.sortDescriptors = [sortDescriptor]
+        request.fetchBatchSize = 30
+        return request
     }
 
     var body: some View {
@@ -140,12 +171,6 @@ struct QuickLogView: View {
                 } else {
                     quickLogForm
                 }
-            }
-            .onReceive(feedingSessionTimer) { date in
-                activeFeedingNow = date
-            }
-            .onAppear {
-                activeFeedingNow = Date()
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -171,6 +196,10 @@ struct QuickLogView: View {
             }
         }
         .presentationDetents(horizontalSizeClass == .regular ? [.large] : [.medium, .large])
+        .onDisappear {
+            commitPendingFeedingRecordAmounts()
+            saveManagedObjectContextIfNeeded()
+        }
     }
 
     private var usesWideQuickLogLayout: Bool {
@@ -180,11 +209,7 @@ struct QuickLogView: View {
     private var quickLogForm: some View {
         Form {
             if isFeedingOnlyMode {
-                if activeFeedingStartedAt == nil {
-                    feedingStartPrompt
-                } else {
-                    activeFeedingForm
-                }
+                quickFeedingSection
                 excretionQuickLogSection
                 quickLogTimelineList
             } else {
@@ -216,36 +241,43 @@ struct QuickLogView: View {
     }
 
     private var wideQuickLogLayout: some View {
-        ScrollView {
-            HStack(alignment: .top, spacing: 16) {
-                VStack(spacing: 16) {
-                    if activeFeedingStartedAt == nil {
-                        quickLogCard(title: "喂奶") {
-                            feedingStartPromptContent
-                        }
-                    } else {
-                        quickLogCard(title: "正在喂奶") {
-                            activeFeedingCompactContent
-                        }
-                    }
+        HStack(alignment: .top, spacing: 16) {
+            // 左列单独滚动：iPhone 横屏放不下时可以滑，放得下时不滚不弹。
+            nonBouncingScrollView {
+                quickLogCard(title: "喂奶") {
+                    quickFeedingContent
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
-
-                VStack(spacing: 16) {
-                    quickLogCard(title: "屎尿") {
-                        excretionQuickLogButtons
-                    }
-
-                    quickLogCard(title: "今天记录") {
-                        quickLogTimelineRows(showsDeleteButton: true)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .padding(16)
-            .adaptiveContentWidth(980)
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 16) {
+                quickLogCard(title: "屎尿") {
+                    excretionQuickLogButtons
+                }
+
+                quickLogCard(title: quickLogTimelineSectionTitle) {
+                    quickLogTimelineRows(showsDeleteButton: true)
+                }
+            }
+            .frame(maxWidth: .infinity)
         }
+        .padding(16)
+        .adaptiveContentWidth(980)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(.systemGroupedBackground))
+    }
+
+    @ViewBuilder
+    private func nonBouncingScrollView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        let scrollView = ScrollView(.vertical, showsIndicators: false) {
+            content()
+        }
+
+        if #available(iOS 16.4, *) {
+            scrollView.scrollBounceBehavior(.basedOnSize)
+        } else {
+            scrollView
+        }
     }
 
     private func quickLogCard<Content: View>(
@@ -274,60 +306,21 @@ struct QuickLogView: View {
     }
 
     private var latestFormulaAmountML: Int? {
-        feedings.compactMap { record in
-            guard let amountML = record.amountMLValue else { return nil }
-            return Int(amountML)
-        }.first
-    }
+        for record in feedings {
+            if let amountML = displayedFeedingRecordAmount(for: record) {
+                return Int(amountML)
+            }
+        }
 
-    private var latestBreastDurationMinutes: Int? {
-        feedings.compactMap { record in
-            record.breastDurationMinutes
-        }.first
-    }
-
-    private var latestFeedingReminderDate: Date? {
-        feedings.first.map { $0.endedAt ?? $0.startedAt }
+        return nil
     }
 
     private var previousFeedingIntervalText: String {
         feedingIntervalText(startDate: feedingStartedAt, emptyText: "还没有更早的喂奶记录")
     }
 
-    private var currentFeedingIntervalText: String {
-        feedingIntervalText(startDate: activeFeedingNow, emptyText: "还没有喂奶记录")
-    }
-
-    private var nextFeedingAlarmDate: Date? {
-        guard feedingOverdueAlarmEnabled, let latestFeedingReminderDate else { return nil }
-        if let nextReminderDate = feedingAlarmController.nextReminderDate {
-            return nextReminderDate
-        }
-
-        return Calendar.current.date(
-            byAdding: .minute,
-            value: feedingOverdueDelayMinutes,
-            to: latestFeedingReminderDate
-        )
-    }
-
-    private var nextFeedingAlarmCountdownText: String {
-        guard let nextFeedingAlarmDate else { return "--" }
-
-        let remainingSeconds = Int(nextFeedingAlarmDate.timeIntervalSince(activeFeedingNow))
-        if remainingSeconds <= 0 {
-            return "已超时"
-        }
-
-        return countdownText(seconds: remainingSeconds)
-    }
-
     private var suggestedFeedingAmountML: Int {
         latestFormulaAmountML ?? 60
-    }
-
-    private var suggestedBreastDurationMinutes: Int {
-        latestBreastDurationMinutes ?? 15
     }
 
     private var latestWeightKG: Double? {
@@ -347,30 +340,55 @@ struct QuickLogView: View {
     }
 
     private var quickLogTimelineDayGroups: [QuickLogTimelineDayGroup] {
-        let calendar = Calendar.current
         let records = quickLogTimelineRecords
-        let groups = Dictionary(grouping: records) { record in
-            calendar.startOfDay(for: record.recordedAt)
-        }
+        guard !records.isEmpty else { return [] }
 
-        return groups.keys.sorted(by: >).map { day in
+        return [
             QuickLogTimelineDayGroup(
-                day: day,
-                records: (groups[day] ?? []).sorted { $0.recordedAt > $1.recordedAt }
+                day: selectedQuickLogTimelineDay,
+                records: records
             )
-        }
+        ]
     }
 
     private var quickLogTimelineRecords: [QuickLogTimelineRecord] {
         let calendar = Calendar.current
-        let feedingRecords = feedings
-            .prefix { calendar.isDateInToday($0.startedAt) }
-            .map(QuickLogTimelineRecord.feeding)
-        let excretionRecords = excretions
-            .prefix { calendar.isDateInToday($0.recordedAt) }
-            .map(QuickLogTimelineRecord.excretion)
+        let selectedDayStart = selectedQuickLogTimelineDay
+        let selectedDayEnd = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: selectedDayStart
+        ) ?? selectedDayStart.addingTimeInterval(86_400)
 
-        return (feedingRecords + excretionRecords)
+        var records: [QuickLogTimelineRecord] = []
+
+        // feedings 按开始时间倒序，扫到窗口之前即可停；上一次喂奶就是倒序里的下一条。
+        var feedingIndex = feedings.startIndex
+        while feedingIndex < feedings.endIndex {
+            let record = feedings[feedingIndex]
+            let startedAt = record.startedAt
+            if startedAt < selectedDayStart {
+                break
+            }
+            if startedAt < selectedDayEnd {
+                let nextIndex = feedings.index(after: feedingIndex)
+                let previousStartedAt = nextIndex < feedings.endIndex ? feedings[nextIndex].startedAt : nil
+                records.append(.feeding(record, previousStartedAt: previousStartedAt))
+            }
+            feedingIndex = feedings.index(after: feedingIndex)
+        }
+
+        for record in excretions {
+            let recordedAt = record.recordedAt
+            if recordedAt < selectedDayStart {
+                break
+            }
+            if recordedAt < selectedDayEnd {
+                records.append(.excretion(record))
+            }
+        }
+
+        return records
             .filter { quickLogTimelineRecord($0, matches: quickLogTimelineFilter) }
             .sorted { $0.recordedAt > $1.recordedAt }
     }
@@ -395,22 +413,26 @@ struct QuickLogView: View {
 
     private var latestMedicationDose: MedicationDose? {
         let trimmedName = medicationName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let preferred = medications.compactMap { record -> MedicationDose? in
-            if !trimmedName.isEmpty && record.name != trimmedName {
-                return nil
+
+        if !trimmedName.isEmpty {
+            for record in medications where record.name == trimmedName {
+                if let dose = MedicationDose.parse(record.dosage) {
+                    return dose
+                }
             }
-            return MedicationDose.parse(record.dosage)
         }
 
-        return preferred.first ?? medications.compactMap { MedicationDose.parse($0.dosage) }.first
+        for record in medications {
+            if let dose = MedicationDose.parse(record.dosage) {
+                return dose
+            }
+        }
+
+        return nil
     }
 
     private var suggestedMedicationDose: MedicationDose {
         latestMedicationDose ?? MedicationDose(amount: 1, unit: medicationDosageUnit)
-    }
-
-    private var isMixedFeeding: Bool {
-        feedingType == .mixed
     }
 
     private var hasFeedingAmount: Bool {
@@ -523,14 +545,6 @@ struct QuickLogView: View {
             Section("喂奶信息") {
                 DatePicker("开始时间", selection: $feedingStartedAt)
                 feedingIntervalHighlight(previousFeedingIntervalText)
-                feedingTypePicker
-                if isMixedFeeding {
-                    DatePicker(
-                        "奶粉开始时间",
-                        selection: $feedingFormulaStartedAt,
-                        in: feedingStartedAt...
-                    )
-                }
                 DatePicker("结束时间", selection: $feedingEndedAt)
                 formulaAmountPicker
 
@@ -541,77 +555,51 @@ struct QuickLogView: View {
         .onAppear {
             applySuggestedFeedingAmountIfNeeded()
         }
-        .onChange(of: feedingType) { _ in
-            activeFormulaStartedAt = nil
-            feedingDurationAdjustment = 0
-            applySuggestedFeedingAmountIfNeeded(force: true)
-        }
     }
 
-    private var feedingStartPrompt: some View {
+    private var quickFeedingSection: some View {
         Section("喂奶") {
-            feedingStartPromptContent
+            quickFeedingContent
                 .padding(.vertical, 6)
         }
     }
 
-    private var feedingStartPromptContent: some View {
+    private var quickFeedingContent: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Image(systemName: "drop.fill")
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Color.pink)
-                    .clipShape(Circle())
+            liveFeedingStatus
+            formulaAmountPicker
+            quickFeedingButton
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("点击喂奶卡片开始计时")
-                        .font(.headline)
-                    Text("开始后只需要等喂奶结束，再填写奶量并保存。")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+        }
+        .onAppear {
+            applySuggestedFeedingAmountIfNeeded()
+        }
+    }
+
+    private var liveFeedingStatus: some View {
+        SwiftUI.TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+            VStack(alignment: .leading, spacing: 12) {
+                feedingIntervalHighlight(
+                    feedingIntervalText(startDate: timeline.date, emptyText: "还没有喂奶记录")
+                )
+                recentThreeHourFeedingAmountStatus(now: timeline.date)
             }
-
-            feedingIntervalHighlight(currentFeedingIntervalText)
-
-            Button {
-                startFeedingSession()
-            } label: {
-                Label("开始喂奶", systemImage: "play.circle.fill")
-                    .font(.title3.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 58)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .tint(.pink)
-
-            nextFeedingAlarmStatus
         }
     }
 
     private func feedingIntervalHighlight(_ value: String) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(systemName: "clock.fill")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.pink)
-                .frame(width: 42, height: 42)
-                .background(Color.pink.opacity(0.14))
-                .clipShape(Circle())
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("距离上次喂奶")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.78)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("距离上次喂奶")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.5)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .background(Color.pink.opacity(0.08))
@@ -620,50 +608,6 @@ struct QuickLogView: View {
                 .stroke(Color.pink.opacity(0.18), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var feedingTypePicker: some View {
-        HStack(spacing: 10) {
-            ForEach(FeedingType.allCases) { type in
-                feedingTypeButton(type)
-            }
-        }
-    }
-
-    private func feedingTypeButton(_ type: FeedingType) -> some View {
-        let isSelected = feedingType == type
-        let tint = feedingTypeTint(for: type)
-
-        return Button {
-            feedingType = type
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: type == .formula ? "waterbottle.fill" : "drop.degreesign.fill")
-                    .font(.title3.weight(.semibold))
-                Text(type.displayName)
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(isSelected ? tint : tint.opacity(0.12))
-            .foregroundStyle(isSelected ? .white : tint)
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(tint.opacity(isSelected ? 0.38 : 0.22), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func feedingTypeTint(for type: FeedingType) -> Color {
-        switch type {
-        case .formula:
-            return .blue
-        case .mixed:
-            return .orange
-        }
     }
 
     private var excretionQuickLogSection: some View {
@@ -693,16 +637,19 @@ struct QuickLogView: View {
 
     @ViewBuilder
     private var quickLogTimelineList: some View {
-        Section("今天记录") {
+        let dayGroups = quickLogTimelineDayGroups
+
+        Section(quickLogTimelineSectionTitle) {
+            quickLogTimelineDayPicker
             quickLogTimelineFilterPicker
 
-            if quickLogTimelineDayGroups.isEmpty {
+            if dayGroups.isEmpty {
                 emptyQuickLogTimelineText
             }
         }
 
-        if !quickLogTimelineDayGroups.isEmpty {
-            ForEach(quickLogTimelineDayGroups) { group in
+        if !dayGroups.isEmpty {
+            ForEach(dayGroups) { group in
                 Section(quickLogTimelineDayTitle(for: group)) {
                     ForEach(group.records) { record in
                         quickLogTimelineRow(record, showsDeleteButton: false)
@@ -710,6 +657,15 @@ struct QuickLogView: View {
                 }
             }
         }
+    }
+
+    private var quickLogTimelineDayPicker: some View {
+        Picker("日期", selection: $quickLogTimelineDayOffset) {
+            ForEach(quickLogTimelineDayOffsets, id: \.self) { offset in
+                Text(quickLogTimelineDayLabel(for: offset)).tag(offset)
+            }
+        }
+        .pickerStyle(.segmented)
     }
 
     private var quickLogTimelineFilterPicker: some View {
@@ -722,22 +678,37 @@ struct QuickLogView: View {
     }
 
     private func quickLogTimelineRows(showsDeleteButton: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let dayGroups = quickLogTimelineDayGroups
+
+        return VStack(alignment: .leading, spacing: 10) {
+            quickLogTimelineDayPicker
             quickLogTimelineFilterPicker
 
-            if quickLogTimelineDayGroups.isEmpty {
+            if dayGroups.isEmpty {
                 emptyQuickLogTimelineText
             } else {
-                ForEach(quickLogTimelineDayGroups) { group in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(quickLogTimelineDayTitle(for: group))
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 2)
+                ScrollView(.vertical, showsIndicators: true) {
+                    quickLogTimelineGroupedRows(dayGroups, showsDeleteButton: showsDeleteButton)
+                        .padding(.trailing, 4)
+                }
+            }
+        }
+    }
 
-                        ForEach(group.records) { record in
-                            quickLogTimelineRow(record, showsDeleteButton: showsDeleteButton)
-                        }
+    private func quickLogTimelineGroupedRows(
+        _ dayGroups: [QuickLogTimelineDayGroup],
+        showsDeleteButton: Bool
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(dayGroups) { group in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(quickLogTimelineDayTitle(for: group))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+
+                    ForEach(group.records) { record in
+                        quickLogTimelineRow(record, showsDeleteButton: showsDeleteButton)
                     }
                 }
             }
@@ -751,24 +722,60 @@ struct QuickLogView: View {
     }
 
     private var emptyQuickLogTimelineMessage: String {
+        let dayLabel = quickLogTimelineDayLabel(for: quickLogTimelineDayOffset)
+
         switch quickLogTimelineFilter {
         case .all:
-            return "今天的喂奶、屎或尿记录会出现在这里。"
+            return "\(dayLabel)的喂奶、屎或尿记录会出现在这里。"
         case .feeding:
-            return "今天还没有喂奶记录。"
+            return "\(dayLabel)还没有喂奶记录。"
         case .poop:
-            return "今天还没有屎记录。"
+            return "\(dayLabel)还没有屎记录。"
         case .pee:
-            return "今天还没有尿记录。"
+            return "\(dayLabel)还没有尿记录。"
+        }
+    }
+
+    private var quickLogTimelineSectionTitle: String {
+        "\(quickLogTimelineDayLabel(for: quickLogTimelineDayOffset))记录"
+    }
+
+    private var selectedQuickLogTimelineDay: Date {
+        quickLogTimelineDay(for: quickLogTimelineDayOffset)
+    }
+
+    private func quickLogTimelineDay(for offset: Int) -> Date {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .day, value: -offset, to: Date()) ?? Date()
+        return calendar.startOfDay(for: date)
+    }
+
+    private func quickLogTimelineDayLabel(for offset: Int) -> String {
+        switch offset {
+        case 0:
+            return "今天"
+        case 1:
+            return "昨天"
+        case 2:
+            return "前天"
+        case 3:
+            return "大前天"
+        default:
+            return DateDisplay.shortDate(quickLogTimelineDay(for: offset))
         }
     }
 
     private func quickLogTimelineDayTitle(for group: QuickLogTimelineDayGroup) -> String {
-        let calendar = Calendar.current
         let feedingCount = group.records.filter { record in
             if case .feeding = record { return true }
             return false
         }.count
+        let feedingTotalAmountML = group.records.reduce(0.0) { total, record in
+            guard case .feeding(let feeding, _) = record,
+                  let amountML = displayedFeedingRecordAmount(for: feeding)
+            else { return total }
+            return total + amountML
+        }
         let poopCount = group.records.filter { record in
             if case .excretion(let excretion) = record { return excretion.type == .poop }
             return false
@@ -777,34 +784,26 @@ struct QuickLogView: View {
             if case .excretion(let excretion) = record { return excretion.type == .pee }
             return false
         }.count
-        let summary = "奶 \(feedingCount) 次 · 屎 \(poopCount) 次 · 尿 \(peeCount) 次"
-
-        if calendar.isDateInToday(group.day) {
-            return "今天 · \(summary)"
-        }
-
-        if calendar.isDateInYesterday(group.day) {
-            return "昨天 · \(summary)"
-        }
-
-        return "\(DateDisplay.shortDate(group.day)) · \(summary)"
+        let feedingTotalText = formatFeedingAmount(feedingTotalAmountML)
+        let summary = "奶 \(feedingCount) 次 · 共 \(feedingTotalText) · 屎 \(poopCount) 次 · 尿 \(peeCount) 次"
+        return "\(quickLogTimelineDayLabel(for: quickLogTimelineDayOffset)) · \(summary)"
     }
 
     @ViewBuilder
     private func quickLogTimelineRow(_ record: QuickLogTimelineRecord, showsDeleteButton: Bool) -> some View {
         switch record {
-        case .feeding(let record):
-            feedingQuickLogRow(record)
+        case .feeding(let record, let previousStartedAt):
+            feedingQuickLogRow(record, previousStartedAt: previousStartedAt, showsDeleteButton: showsDeleteButton)
         case .excretion(let record):
             excretionQuickLogRow(record, showsDeleteButton: showsDeleteButton)
         }
     }
 
-    private func feedingQuickLogRow(_ record: FeedingRecord) -> some View {
-        let tint = record.feedingType == .mixed ? Color.orange : Color.blue
+    private func feedingQuickLogRow(_ record: FeedingRecord, previousStartedAt: Date?, showsDeleteButton: Bool) -> some View {
+        let tint = Color.blue
 
-        return HStack(spacing: 12) {
-            Image(systemName: record.feedingType == .mixed ? "drop.degreesign.fill" : "waterbottle.fill")
+        return HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "waterbottle.fill")
                 .font(.headline.weight(.semibold))
                 .foregroundStyle(tint)
                 .frame(width: 34, height: 34)
@@ -812,65 +811,92 @@ struct QuickLogView: View {
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(record.feedingType.displayName)
-                        .font(.subheadline.weight(.semibold))
-
-                    Spacer(minLength: 8)
-
-                    Text(feedingQuickLogAmountText(for: record))
-                        .font(.headline.weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(tint)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(tint.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                }
+                Text("喂奶")
+                    .font(.subheadline.weight(.semibold))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(feedingQuickLogTimingDetail(for: record))
                         .lineLimit(2)
 
-                    if let intervalText = feedingQuickLogIntervalText(for: record) {
-                        Text("间隔 \(intervalText)")
+                    if let previousStartedAt {
+                        Text("间隔 \(durationText(seconds: Int(record.startedAt.timeIntervalSince(previousStartedAt))))")
                     }
                 }
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .minimumScaleFactor(0.82)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            feedingQuickLogAmountEditor(for: record, tint: tint)
+                .fixedSize(horizontal: true, vertical: false)
+
+            if showsDeleteButton {
+                Button(role: .destructive) {
+                    deleteFeedingRecord(record)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.headline)
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.borderless)
+            }
         }
         .padding(.vertical, 4)
+        .swipeActions {
+            Button("删除", role: .destructive) {
+                deleteFeedingRecord(record)
+            }
+        }
+    }
+
+    private func feedingQuickLogAmountEditor(for record: FeedingRecord, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Button {
+                adjustFeedingRecordAmount(record, by: -10)
+            } label: {
+                Image(systemName: "minus")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("减少奶量")
+
+            Text(feedingQuickLogAmountText(for: record))
+                .font(.headline.weight(.bold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(minWidth: 64)
+
+            Button {
+                adjustFeedingRecordAmount(record, by: 10)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.caption.weight(.bold))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel("增加奶量")
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(tint.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private func feedingQuickLogAmountText(for record: FeedingRecord) -> String {
-        guard let amountML = record.amountMLValue else { return "未填奶量" }
-        return "\(Int(amountML)) ml"
+        guard let amountML = displayedFeedingRecordAmount(for: record) else { return "未填奶量" }
+        return formatFeedingAmount(amountML)
     }
 
     private func feedingQuickLogTimingDetail(for record: FeedingRecord) -> String {
         var parts = [DateDisplay.time(record.startedAt)]
-        if record.feedingType == .mixed {
-            if let breastDurationMinutes = record.breastDurationMinutes {
-                parts.append("母乳 \(breastDurationMinutes) 分")
-            }
-            if let formulaDurationMinutes = record.formulaDurationMinutes {
-                parts.append("奶粉 \(formulaDurationMinutes) 分")
-            }
-        } else if let durationMinutes = record.durationMinutes {
+        if let durationMinutes = record.durationMinutes {
             parts.append("\(durationMinutes) 分")
         }
         return parts.joined(separator: " · ")
-    }
-
-    private func feedingQuickLogIntervalText(for record: FeedingRecord) -> String? {
-        guard let previousFeedingStartDate = previousFeedingStartDate(before: record.startedAt) else {
-            return nil
-        }
-
-        let seconds = Int(record.startedAt.timeIntervalSince(previousFeedingStartDate))
-        return durationText(seconds: seconds)
     }
 
     private func excretionQuickLogRow(_ record: ExcretionRecord, showsDeleteButton: Bool) -> some View {
@@ -927,49 +953,46 @@ struct QuickLogView: View {
                 .foregroundStyle(tint)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(QuickPressButtonStyle())
     }
 
-    private var nextFeedingAlarmStatus: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: feedingOverdueAlarmEnabled ? "bell.and.waves.left.and.right.fill" : "bell.slash")
+    private var quickFeedingButton: some View {
+        Button {
+            saveQuickFeeding()
+        } label: {
+            Label("喂奶", systemImage: "plus.circle.fill")
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 56)
+                .background(Color.pink.opacity(0.16))
+                .foregroundStyle(Color.pink)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(QuickPressButtonStyle())
+        .disabled(!hasFeedingAmount)
+        .opacity(hasFeedingAmount ? 1 : 0.45)
+    }
+
+    private func recentThreeHourFeedingAmountStatus(now: Date) -> some View {
+        let summary = recentThreeHourFeedingSummary(now: now)
+
+        return HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "waterbottle.fill")
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(feedingOverdueAlarmEnabled ? Color.pink : Color.secondary)
+                .foregroundStyle(.pink)
                 .frame(width: 34, height: 34)
-                .background((feedingOverdueAlarmEnabled ? Color.pink : Color.secondary).opacity(0.12))
+                .background(Color.pink.opacity(0.12))
                 .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 5) {
-                if !feedingOverdueAlarmEnabled {
-                    Text("喂奶闹钟未开启")
-                        .font(.subheadline.weight(.semibold))
-                    Text("可在设置里开启超时闹钟。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else if let nextFeedingAlarmDate {
-                    HStack {
-                        Text("下次闹钟")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Text(DateDisplay.dateTime(nextFeedingAlarmDate))
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack {
-                        Text("倒计时")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(nextFeedingAlarmCountdownText)
-                            .font(.title3.monospacedDigit().weight(.bold))
-                            .foregroundStyle(nextFeedingAlarmCountdownText == "已超时" ? Color.red : Color.primary)
-                    }
-                } else {
-                    Text("还没有喂奶记录")
-                        .font(.subheadline.weight(.semibold))
-                    Text("保存第一次喂奶后会显示下次闹钟时间。")
-                        .font(.footnote)
+                Text("3小时内喂奶量")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline) {
+                    Text(formatFeedingAmount(summary.totalAmountML))
+                        .font(.title3.monospacedDigit().weight(.bold))
+                    Spacer()
+                    Text(summary.count > 0 ? "共 \(summary.count) 次" : "暂无记录")
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -977,191 +1000,6 @@ struct QuickLogView: View {
         .padding(12)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private var activeFeedingForm: some View {
-        Group {
-            Section("正在喂奶") {
-                activeFeedingCompactContent
-                    .padding(.vertical, 4)
-            }
-        }
-        .onAppear {
-            applySuggestedFeedingAmountIfNeeded()
-        }
-        .onChange(of: feedingType) { _ in
-            feedingDurationAdjustment = 0
-            applySuggestedFeedingAmountIfNeeded(force: true)
-        }
-    }
-
-    private var activeFeedingCompactContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            activeFeedingStatusContent
-            feedingTypePicker
-            formulaAmountPicker
-            activeFeedingActionsContent
-        }
-    }
-
-    private var activeFeedingStatusContent: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 4) {
-                Image(systemName: activeFeedingStatusIconName)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(Color.pink)
-                    .clipShape(Circle())
-
-                Text(activeFeedingStageText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.pink)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(activeFeedingElapsedText)
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                    Spacer()
-                    Text(activeFeedingStartedAt.map { DateDisplay.time($0) } ?? "--:--")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-
-                if isMixedFeeding {
-                    HStack(spacing: 8) {
-                        compactStageBadge("母乳", value: activeBreastDurationText)
-                        compactStageBadge("奶粉", value: activeFormulaDurationText)
-                    }
-
-                    Text(activeFormulaStartedAt.map { "奶粉开始 \(DateDisplay.time($0))" } ?? "母乳喂完后点“母乳喂完”，开始奶粉计时。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                        .frame(height: 18, alignment: .leading)
-                } else {
-                    Text("开始于 \(activeFeedingStartedAt.map { DateDisplay.time($0) } ?? "--:--")")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(height: 18, alignment: .leading)
-                }
-            }
-        }
-        .frame(height: 112, alignment: .top)
-        .padding(12)
-        .background(Color.pink.opacity(0.08))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.pink.opacity(0.18), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var activeFeedingActionsContent: some View {
-        HStack(spacing: 10) {
-            if isMixedFeeding && activeFormulaStartedAt == nil {
-                Button {
-                    startFormulaStage()
-                } label: {
-                    Label("母乳喂完", systemImage: "forward.end.circle.fill")
-                        .font(.title3.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .tint(.pink)
-            } else {
-                Button {
-                    finishActiveFeedingSession()
-                } label: {
-                    Label("结束并保存", systemImage: "checkmark.circle.fill")
-                        .font(.title3.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .tint(.pink)
-                .disabled(!canFinishActiveFeeding)
-            }
-
-            Button(role: .destructive) {
-                cancelActiveFeedingSession()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.headline.weight(.semibold))
-                    .frame(width: 44, height: 52)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-        }
-    }
-
-    private func compactStageBadge(_ title: String, value: String) -> some View {
-        HStack(spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.caption.monospacedDigit().weight(.bold))
-                .foregroundStyle(.primary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private var breastDurationPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("时长快捷选择")
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-                Text(breastDurationSuggestionTitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack {
-                Text("少 \(breastDurationSliderLimit) 分钟")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("参考 \(suggestedBreastDurationMinutes) 分钟")
-                    .font(.caption.weight(.semibold))
-                Spacer()
-                Text("多 \(breastDurationSliderLimit) 分钟")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Slider(value: $feedingDurationAdjustment, in: -Double(breastDurationSliderLimit)...Double(breastDurationSliderLimit), step: 1) {
-                Text("时长调整")
-            } minimumValueLabel: {
-                Image(systemName: "minus")
-                    .foregroundStyle(.secondary)
-            } maximumValueLabel: {
-                Image(systemName: "plus")
-                    .foregroundStyle(.secondary)
-            }
-            .onChange(of: feedingDurationAdjustment) { _ in
-                setFeedingDuration(minutes: suggestedBreastDurationMinutes + Int(feedingDurationAdjustment))
-            }
-
-            Text(breastDurationSelectionText)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 2)
-
-            microAdjustButtons(
-                minusAction: { adjustBreastDuration(by: -1) },
-                plusAction: { adjustBreastDuration(by: 1) }
-            )
-        }
     }
 
     private var formulaAmountPicker: some View {
@@ -1205,28 +1043,34 @@ struct QuickLogView: View {
                 .foregroundStyle(isSelected ? .white : Color.pink)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(QuickPressButtonStyle())
     }
 
     private var feedingAmountDisplay: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        VStack(spacing: 4) {
             Text("当前奶量")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            Spacer()
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(feedingAmountDisplayText)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
 
-            Text(feedingAmountDisplayText)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-            Text("ml")
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.secondary)
+                Text("ml")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .transaction { transaction in
+                transaction.animation = nil
+            }
         }
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .center)
         .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.vertical, 10)
         .background(Color.pink.opacity(0.08))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1244,7 +1088,7 @@ struct QuickLogView: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity, minHeight: 40)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
 
             Rectangle()
                 .fill(Color.pink.opacity(0.18))
@@ -1257,7 +1101,7 @@ struct QuickLogView: View {
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity, minHeight: 40)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderless)
         }
         .foregroundStyle(Color.pink)
         .background(Color.pink.opacity(0.12))
@@ -1594,11 +1438,6 @@ struct QuickLogView: View {
     private var canSave: Bool {
         switch recordType {
         case .feeding:
-            if isMixedFeeding {
-                return feedingFormulaStartedAt >= feedingStartedAt &&
-                    feedingEndedAt >= feedingFormulaStartedAt &&
-                    hasFeedingAmount
-            }
             return feedingEndedAt >= feedingStartedAt && hasFeedingAmount
         case .weight:
             return Double(weightKG) != nil
@@ -1617,61 +1456,6 @@ struct QuickLogView: View {
         }
     }
 
-    private var canFinishActiveFeeding: Bool {
-        guard activeFeedingStartedAt != nil else { return false }
-        if isMixedFeeding {
-            return activeFormulaStartedAt != nil && hasFeedingAmount
-        }
-        return hasFeedingAmount
-    }
-
-    private var activeFeedingElapsedText: String {
-        guard let activeFeedingStartedAt else { return "00:00" }
-
-        let stageStartedAt = activeFormulaStartedAt ?? activeFeedingStartedAt
-        let seconds = max(Int(activeFeedingNow.timeIntervalSince(stageStartedAt)), 0)
-        return countdownText(seconds: seconds)
-    }
-
-    private var activeFeedingStageText: String {
-        if isMixedFeeding {
-            return activeFormulaStartedAt == nil ? "母乳阶段" : "奶粉阶段"
-        }
-        return "奶粉计时"
-    }
-
-    private var activeFeedingStatusIconName: String {
-        if isMixedFeeding, activeFormulaStartedAt == nil {
-            return "drop.fill"
-        }
-        return "timer"
-    }
-
-    private var activeBreastDurationText: String {
-        guard let activeFeedingStartedAt else { return "等待开始" }
-        let endDate = activeFormulaStartedAt ?? activeFeedingNow
-        let seconds = max(Int(endDate.timeIntervalSince(activeFeedingStartedAt)), 0)
-        return durationText(seconds: seconds)
-    }
-
-    private var activeFormulaDurationText: String {
-        guard let activeFormulaStartedAt else { return "--" }
-        let seconds = max(Int(activeFeedingNow.timeIntervalSince(activeFormulaStartedAt)), 0)
-        return durationText(seconds: seconds)
-    }
-
-    private func countdownText(seconds: Int) -> String {
-        let seconds = max(seconds, 0)
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let remainingSeconds = seconds % 60
-
-        if hours > 0 {
-            return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
-        }
-        return String(format: "%02d:%02d", minutes, remainingSeconds)
-    }
-
     private func feedingIntervalText(startDate: Date, emptyText: String) -> String {
         guard let previousFeedingStartDate = previousFeedingStartDate(before: startDate) else {
             return emptyText
@@ -1682,9 +1466,43 @@ struct QuickLogView: View {
     }
 
     private func previousFeedingStartDate(before startDate: Date) -> Date? {
-        feedings
-            .map(\.startedAt)
-            .first { $0 < startDate }
+        feedings.first { record in
+            record.startedAt < startDate
+        }?.startedAt
+    }
+
+    private func recentThreeHourFeedingSummary(now: Date) -> (count: Int, totalAmountML: Double) {
+        let windowStart = now.addingTimeInterval(-3 * 60 * 60)
+        let windowEnd = now.addingTimeInterval(1)
+        var count = 0
+        var totalAmountML = 0.0
+
+        for record in feedings {
+            if record.startedAt < windowStart {
+                break
+            }
+            guard record.startedAt <= windowEnd else { continue }
+            count += 1
+            totalAmountML += displayedFeedingRecordAmount(for: record) ?? 0
+        }
+
+        return (count, totalAmountML)
+    }
+
+    private func displayedFeedingRecordAmount(for record: FeedingRecord) -> Double? {
+        if let pendingAmount = pendingFeedingRecordAmounts[record.objectID] {
+            return Double(pendingAmount)
+        }
+
+        return record.amountMLValue
+    }
+
+    private func formatFeedingAmount(_ amountML: Double) -> String {
+        if amountML.rounded() == amountML {
+            return "\(Int(amountML)) ml"
+        }
+
+        return "\(String(format: "%.1f", amountML)) ml"
     }
 
     private func durationText(seconds: Int) -> String {
@@ -1695,73 +1513,15 @@ struct QuickLogView: View {
         let remainingSeconds = seconds % 60
 
         if days > 0 {
-            return "\(days)天\(hours)小时\(minutes)分钟\(remainingSeconds)秒"
+            return "\(days)天\(hours)小时\(minutes)分\(remainingSeconds)秒"
         }
         if hours > 0 {
-            return "\(hours)小时\(minutes)分钟\(remainingSeconds)秒"
+            return "\(hours)小时\(minutes)分\(remainingSeconds)秒"
         }
         if minutes > 0 {
-            return "\(minutes)分钟\(remainingSeconds)秒"
+            return "\(minutes)分\(remainingSeconds)秒"
         }
         return "\(remainingSeconds)秒"
-    }
-
-    private func startFeedingSession() {
-        guard activeFeedingStartedAt == nil else { return }
-        let now = Date()
-        feedingStartedAt = now
-        feedingFormulaStartedAt = now
-        feedingEndedAt = now
-        activeFeedingStartedAt = now
-        activeFormulaStartedAt = nil
-        activeFeedingNow = now
-        feedingDurationAdjustment = 0
-        applySuggestedFeedingAmountIfNeeded(force: true)
-    }
-
-    private func startFormulaStage() {
-        guard isMixedFeeding, activeFeedingStartedAt != nil, activeFormulaStartedAt == nil else { return }
-        let now = Date()
-        activeFormulaStartedAt = now
-        feedingFormulaStartedAt = now
-        activeFeedingNow = now
-        applySuggestedFeedingAmountIfNeeded(force: true)
-    }
-
-    private func finishActiveFeedingSession() {
-        guard let startedAt = activeFeedingStartedAt, canFinishActiveFeeding else { return }
-        let endedAt = Date()
-
-        _ = FeedingRecord(
-            context: managedObjectContext,
-            startedAt: startedAt,
-            endedAt: endedAt,
-            formulaStartedAt: isMixedFeeding ? activeFormulaStartedAt : nil,
-            feedingType: feedingType,
-            amountML: Double(feedingAmount.trimmingCharacters(in: .whitespacesAndNewlines)),
-            note: feedingNote
-        )
-
-        try? managedObjectContext.save()
-        resetActiveFeedingSession()
-        dismiss()
-    }
-
-    private func cancelActiveFeedingSession() {
-        resetActiveFeedingSession()
-    }
-
-    private func resetActiveFeedingSession() {
-        activeFeedingStartedAt = nil
-        activeFormulaStartedAt = nil
-        activeFeedingNow = Date()
-        feedingStartedAt = Date()
-        feedingFormulaStartedAt = Date().addingTimeInterval(10 * 60)
-        feedingEndedAt = Date().addingTimeInterval(15 * 60)
-        feedingNote = ""
-        feedingDurationAdjustment = 0
-        didApplySuggestedFeedingAmount = false
-        didApplySuggestedFeedingDuration = false
     }
 
     private func saveQuickExcretion(_ type: ExcretionType) {
@@ -1771,11 +1531,95 @@ struct QuickLogView: View {
             type: type,
             note: ""
         )
-        try? managedObjectContext.save()
+        managedObjectContext.processPendingChanges()
+        scheduleManagedObjectContextSave()
+    }
+
+    private func saveQuickFeeding() {
+        let now = Date()
+        _ = FeedingRecord(
+            context: managedObjectContext,
+            startedAt: now,
+            feedingType: .formula,
+            amountML: Double(feedingAmount.trimmingCharacters(in: .whitespacesAndNewlines)),
+            note: ""
+        )
+        managedObjectContext.processPendingChanges()
+        scheduleManagedObjectContextSave()
     }
 
     private func deleteExcretionRecord(_ record: ExcretionRecord) {
         managedObjectContext.delete(record)
+        managedObjectContext.processPendingChanges()
+        scheduleManagedObjectContextSave()
+    }
+
+    private func deleteFeedingRecord(_ record: FeedingRecord) {
+        managedObjectContext.delete(record)
+        managedObjectContext.processPendingChanges()
+        scheduleManagedObjectContextSave()
+    }
+
+    private func adjustFeedingRecordAmount(_ record: FeedingRecord, by delta: Int) {
+        let objectID = record.objectID
+        let currentAmount = pendingFeedingRecordAmounts[objectID] ?? Int((record.amountMLValue ?? 0).rounded())
+        let updatedAmount = max(currentAmount + delta, 0)
+        let saveVersion = (pendingFeedingRecordAmountSaveVersions[objectID] ?? 0) + 1
+
+        pendingFeedingRecordAmounts[objectID] = updatedAmount
+        pendingFeedingRecordAmountSaveVersions[objectID] = saveVersion
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            guard pendingFeedingRecordAmountSaveVersions[objectID] == saveVersion else { return }
+            savePendingFeedingRecordAmount(record)
+        }
+    }
+
+    private func savePendingFeedingRecordAmount(_ record: FeedingRecord) {
+        let objectID = record.objectID
+        guard let pendingAmount = pendingFeedingRecordAmounts[objectID] else { return }
+
+        if record.isDeleted {
+            pendingFeedingRecordAmounts[objectID] = nil
+            pendingFeedingRecordAmountSaveVersions[objectID] = nil
+            return
+        }
+
+        record.amountMLValue = Double(pendingAmount)
+        saveManagedObjectContextIfNeeded()
+        pendingFeedingRecordAmounts[objectID] = nil
+        pendingFeedingRecordAmountSaveVersions[objectID] = nil
+    }
+
+    private func commitPendingFeedingRecordAmounts() {
+        guard !pendingFeedingRecordAmounts.isEmpty else { return }
+
+        for (objectID, amount) in pendingFeedingRecordAmounts {
+            guard let object = try? managedObjectContext.existingObject(with: objectID),
+                  let record = object as? FeedingRecord,
+                  !record.isDeleted
+            else { continue }
+
+            record.amountMLValue = Double(amount)
+        }
+
+        saveManagedObjectContextIfNeeded()
+        pendingFeedingRecordAmounts.removeAll()
+        pendingFeedingRecordAmountSaveVersions.removeAll()
+    }
+
+    private func scheduleManagedObjectContextSave(after delay: TimeInterval = 0.25) {
+        quickLogSaveVersion += 1
+        let saveVersion = quickLogSaveVersion
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            guard quickLogSaveVersion == saveVersion else { return }
+            saveManagedObjectContextIfNeeded()
+        }
+    }
+
+    private func saveManagedObjectContextIfNeeded() {
+        guard managedObjectContext.hasChanges else { return }
         try? managedObjectContext.save()
     }
 
@@ -1786,8 +1630,7 @@ struct QuickLogView: View {
                 context: managedObjectContext,
                 startedAt: feedingStartedAt,
                 endedAt: feedingEndedAt,
-                formulaStartedAt: isMixedFeeding ? feedingFormulaStartedAt : nil,
-                feedingType: feedingType,
+                feedingType: .formula,
                 amountML: Double(feedingAmount.trimmingCharacters(in: .whitespacesAndNewlines)),
                 note: feedingNote
             )
@@ -1859,21 +1702,6 @@ struct QuickLogView: View {
         return "默认 60 ml"
     }
 
-    private var breastDurationSuggestionTitle: String {
-        if let latestBreastDurationMinutes {
-            return "上次 \(latestBreastDurationMinutes) 分钟"
-        }
-        return "默认 15 分钟"
-    }
-
-    private var selectedFeedingDurationMinutes: Int {
-        max(Int(feedingEndedAt.timeIntervalSince(feedingStartedAt) / 60), 0)
-    }
-
-    private var breastDurationSliderLimit: Int {
-        max(10, suggestedBreastDurationMinutes)
-    }
-
     private var weightSliderLimitJin: Double {
         let baseLimit = 5.0
         guard let weight = Double(weightKG) else { return baseLimit }
@@ -1888,15 +1716,6 @@ struct QuickLogView: View {
     private var feedingAmountDisplayText: String {
         guard let currentFeedingAmountML else { return "--" }
         return "\(currentFeedingAmountML)"
-    }
-
-    private var breastDurationSelectionText: String {
-        let currentDuration = max(suggestedBreastDurationMinutes + Int(feedingDurationAdjustment), 1)
-        let delta = currentDuration - suggestedBreastDurationMinutes
-        if delta == 0 {
-            return "当前选择：参考 \(currentDuration) 分钟"
-        }
-        return "当前选择：\(currentDuration) 分钟（\(delta > 0 ? "多" : "少") \(abs(delta)) 分钟）"
     }
 
     private var weightSuggestionTitle: String {
@@ -1978,20 +1797,6 @@ struct QuickLogView: View {
         didApplySuggestedFeedingAmount = true
     }
 
-    private func applySuggestedFeedingDurationIfNeeded(force: Bool = false) {
-        guard isMixedFeeding else { return }
-        guard force || !didApplySuggestedFeedingDuration else { return }
-        if force || selectedFeedingDurationMinutes <= 0 {
-            feedingDurationAdjustment = 0
-            setFeedingDuration(minutes: suggestedBreastDurationMinutes)
-        }
-        didApplySuggestedFeedingDuration = true
-    }
-
-    private func setFeedingDuration(minutes: Int) {
-        feedingEndedAt = feedingStartedAt.addingTimeInterval(TimeInterval(minutes * 60))
-    }
-
     private func applySuggestedWeightIfNeeded(force: Bool = false) {
         guard force || !didApplySuggestedWeight else { return }
         guard force || weightKG.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -2051,12 +1856,6 @@ struct QuickLogView: View {
         let current = currentFeedingAmountML ?? 60
         let updated = max(current + delta, 0)
         feedingAmount = "\(updated)"
-    }
-
-    private func adjustBreastDuration(by delta: Int) {
-        let updated = max(selectedFeedingDurationMinutes + delta, 1)
-        setFeedingDuration(minutes: updated)
-        feedingDurationAdjustment = Double(updated - suggestedBreastDurationMinutes)
     }
 
     private func adjustWeight(by delta: Double) {
